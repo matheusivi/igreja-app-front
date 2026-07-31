@@ -1,3 +1,8 @@
+// Primeiríssimo import: precisa rodar antes de qualquer código do Reanimated,
+// e o gesture-handler já puxa o Reanimated junto.
+import './src/config/reanimated';
+import 'react-native-gesture-handler';
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';

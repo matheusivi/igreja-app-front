@@ -32,9 +32,14 @@ export type UpdateMePayload = Partial<{
   estadoCivil: string;
   profissao: string;
   exibirAniversario: boolean;
+  // null remove a foto de perfil (o backend apaga a imagem no Cloudinary).
+  fotoUrl: string | null;
 }>;
 
 const TOKEN_KEY = 'auth_token';
+// Só o e-mail — nunca a senha. Serve para pré-preencher o campo no próximo
+// login ("Lembrar de mim"), não para manter a sessão (isso é papel do token).
+const REMEMBERED_EMAIL_KEY = 'remembered_email';
 
 export const authService = {
   async login(email: string, senha: string): Promise<User> {
@@ -76,5 +81,17 @@ export const authService = {
 
   getStoredToken(): Promise<string | null> {
     return AsyncStorage.getItem(TOKEN_KEY);
+  },
+
+  getRememberedEmail(): Promise<string | null> {
+    return AsyncStorage.getItem(REMEMBERED_EMAIL_KEY);
+  },
+
+  async setRememberedEmail(email: string | null): Promise<void> {
+    if (email) {
+      await AsyncStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+    } else {
+      await AsyncStorage.removeItem(REMEMBERED_EMAIL_KEY);
+    }
   },
 };

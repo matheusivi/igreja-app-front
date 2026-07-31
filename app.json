@@ -5,10 +5,19 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O IBVI usa suas fotos para você escolher a imagem do seu perfil.",
+          "cameraPermission": "O IBVI usa a câmera para você tirar a foto do seu perfil."
+        }
+      ]
+    ],
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -19,7 +28,8 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     }
   }
 }
