@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Button, TextField } from '../../components';
+import { Button, RequisitosSenha, avaliarSenha, senhaValida, TextField } from '../../components';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { NOME_IGREJA } from '../../constants/igreja';
 import type { AuthStackParamList } from '../../navigation/types';
 import { authService } from '../../services/auth.service';
 import { extractErrorMessage } from '../../services/api';
@@ -11,20 +12,15 @@ import { AuthLayout } from './AuthLayout';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
-function Requirement({ met, label }: { met: boolean; label: string }) {
-  const colors = useThemeColors();
-  return (
-    <View className="flex-row items-center gap-2">
-      <Ionicons
-        name={met ? 'checkmark-circle' : 'ellipse-outline'}
-        size={16}
-        color={met ? colors.success : colors.outline}
-      />
-      <Text className={['font-sans text-sm', met ? 'text-success' : 'text-ink-muted'].join(' ')}>
-        {label}
-      </Text>
-    </View>
-  );
+/**
+ * Tira TODO espaço do código, não só das pontas.
+ *
+ * O código tem 64 caracteres e o e-mail o quebra em várias linhas. Ao
+ * selecionar e copiar, o celular traz as quebras junto — e `trim()` só limpa
+ * início e fim. O resultado era "código inválido" para quem copiou certo.
+ */
+function limparCodigo(valor: string): string {
+  return valor.replace(/\s+/g, '');
 }
 
 export function ResetPasswordScreen({ navigation, route }: Props) {
@@ -36,19 +32,17 @@ export function ResetPasswordScreen({ navigation, route }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const hasMinLength = password.length >= 8;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
+  const forcaSenha = avaliarSenha(password);
   const passwordsMatch = password.length > 0 && password === confirmPassword;
 
-  const canSubmit = token.trim().length > 0 && hasMinLength && hasUppercase && hasNumber && passwordsMatch;
+  const canSubmit = limparCodigo(token).length > 0 && senhaValida(forcaSenha) && passwordsMatch;
 
   async function handleReset() {
     if (!canSubmit) return;
     setError(null);
     setIsLoading(true);
     try {
-      await authService.resetPassword(token.trim(), password);
+      await authService.resetPassword(limparCodigo(token), password);
       setDone(true);
     } catch (e) {
       setError(extractErrorMessage(e, 'Código inválido ou expirado. Solicite um novo link.'));
@@ -62,7 +56,7 @@ export function ResetPasswordScreen({ navigation, route }: Props) {
       <AuthLayout
         title="Senha redefinida!"
         subtitle="Sua senha foi atualizada com sucesso. Faça login para continuar."
-        footer={<Text className="font-sans text-xs text-outline">IBVI Nova Andradina</Text>}
+        footer={<Text className="font-sans text-xs text-ink-muted">{NOME_IGREJA}</Text>}
       >
         <Button
           label="Ir para o login"
@@ -90,7 +84,7 @@ export function ResetPasswordScreen({ navigation, route }: Props) {
     >
       <TextField
         label="Código de recuperação"
-        placeholder="Cole o código do e-mail aqui"
+        placeholder="Cole aqui o código que chegou no e-mail"
         autoCapitalize="none"
         value={token}
         onChangeText={(v) => { setToken(v); setError(null); }}
@@ -114,9 +108,7 @@ export function ResetPasswordScreen({ navigation, route }: Props) {
         <Text className="font-sans-semibold text-xs uppercase tracking-wide text-ink-muted">
           Requisitos de segurança
         </Text>
-        <Requirement met={hasMinLength} label="Mínimo de 8 caracteres" />
-        <Requirement met={hasUppercase} label="Pelo menos uma letra maiúscula" />
-        <Requirement met={hasNumber} label="Pelo menos um número" />
+        <RequisitosSenha senha={password} />
         <Requirement met={passwordsMatch} label="As senhas devem ser iguais" />
       </View>
 

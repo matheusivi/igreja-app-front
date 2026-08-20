@@ -1,5 +1,6 @@
 import { Image, Text, View } from 'react-native';
 import { getIniciais } from '../services/prayer.service';
+import { urlImagem } from '../services/imagem';
 
 /**
  * Avatar da pessoa: mostra a foto quando existe, e as iniciais do nome
@@ -18,7 +19,7 @@ export function Avatar({ nome, fotoUrl, size = 40 }: AvatarProps) {
   if (fotoUrl) {
     return (
       <Image
-        source={{ uri: fotoUrl }}
+        source={{ uri: urlImagem(fotoUrl, { largura: size, altura: size }) }}
         style={{ width: size, height: size, borderRadius: size / 2 }}
         accessibilityLabel={nome ? `Foto de ${nome}` : 'Foto do usuário'}
       />

@@ -49,9 +49,10 @@ export function CreateCursoScreen({ navigation }: Props) {
         capitulos: itensParaCapitulos(itensEmenta),
       });
 
-      // Sem isto o curso novo não apareceria na lista até o cache expirar.
+      // Só as listas: o curso é novo, então não existe detalhe nem turmas em
+      // cache para recarregar.
       await queryClient.invalidateQueries({
-        queryKey: cursosKeys.all,
+        queryKey: cursosKeys.listas(),
         refetchType: 'all',
       });
 
@@ -75,7 +76,7 @@ export function CreateCursoScreen({ navigation }: Props) {
 
       <ScrollView
         className="flex-1 px-gutter"
-        contentContainerClassName="gap-4 py-lg"
+        contentContainerClassName="gap-4 py-3xl"
         keyboardShouldPersistTaps="handled"
       >
         <TextField

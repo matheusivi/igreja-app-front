@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, ImagePickerField, TextField } from '../../components';
+import { useCriarGrupo } from '../../hooks/queries/useGrupos';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import type { AppStackParamList } from '../../navigation/types';
 import { extractErrorMessage } from '../../services/api';
-import { groupsService } from '../../services/groups.service';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CreateGroup'>;
 
@@ -15,23 +15,24 @@ export function CreateGroupScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const [nome, setNome] = useState('');
   const [imagemUrl, setImagemUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit() {
+  // Pelo hook, e não pelo service direto — era exatamente isso que faltava.
+  // Sem passar pela mutação, criar o grupo não invalidava nada, e a aba
+  // Grupos só mostrava o grupo novo quando remontava por outro motivo.
+  const criarGrupo = useCriarGrupo();
+
+  function handleSubmit() {
     setError(null);
-    setIsLoading(true);
-    try {
-      const grupo = await groupsService.createGroup(
-        nome.trim() || undefined,
-        imagemUrl,
-      );
-      navigation.replace('GroupDetail', { id: String(grupo.id) });
-    } catch (e) {
-      setError(extractErrorMessage(e, 'Não foi possível criar a família.'));
-    } finally {
-      setIsLoading(false);
-    }
+    criarGrupo.mutate(
+      { nome: nome.trim() || undefined, imagemUrl },
+      {
+        onSuccess: (grupo) =>
+          navigation.replace('GroupDetail', { id: String(grupo.id) }),
+        onError: (e) =>
+          setError(extractErrorMessage(e, 'Não foi possível criar a família.')),
+      },
+    );
   }
 
   return (
@@ -46,7 +47,7 @@ export function CreateGroupScreen({ navigation }: Props) {
 
       <ScrollView
         className="flex-1 px-gutter"
-        contentContainerClassName="gap-4 py-lg"
+        contentContainerClassName="gap-4 py-3xl"
         keyboardShouldPersistTaps="handled"
       >
         <TextField
@@ -66,7 +67,11 @@ export function CreateGroupScreen({ navigation }: Props) {
 
         {error && <Text className="text-center font-sans text-sm text-error">{error}</Text>}
 
-        <Button label="Criar Família" loading={isLoading} onPress={handleSubmit} />
+        <Button
+          label="Criar Família"
+          loading={criarGrupo.isPending}
+          onPress={handleSubmit}
+        />
       </ScrollView>
     </SafeAreaView>
   );

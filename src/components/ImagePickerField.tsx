@@ -78,7 +78,7 @@ export function ImagePickerField({
             <Text className="font-sans-medium text-sm text-ink-muted">
               Toque para escolher uma imagem
             </Text>
-            <Text className="font-sans text-xs text-outline">
+            <Text className="font-sans text-xs text-ink-muted">
               Câmera ou galeria
             </Text>
           </View>
@@ -86,7 +86,7 @@ export function ImagePickerField({
       </Pressable>
 
       {hint ? (
-        <Text className="font-sans text-xs text-outline">{hint}</Text>
+        <Text className="font-sans text-xs text-ink-muted">{hint}</Text>
       ) : null}
     </View>
   );

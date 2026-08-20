@@ -8,7 +8,7 @@ import { useCriarSala } from '../../hooks/queries/useCursos';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import type { AppStackParamList } from '../../navigation/types';
 import { extractErrorMessage } from '../../services/api';
-import type { CreateSalaPayload } from '../../services/courses.service';
+import type { CreateSalaPayload, PublicoSala } from '../../services/courses.service';
 import { isValidDate, maskDate } from '../../utils/masks';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CreateSala'>;
@@ -40,6 +40,9 @@ export function CreateSalaScreen({ route, navigation }: Props) {
 
   const [nomeSala, setNomeSala] = useState('');
   const [capacidade, setCapacidade] = useState('');
+  // "Todos" por padrão; o servidor ajusta sozinho quando o curso já é de um
+  // sexo só, então o líder não precisa repetir a informação.
+  const [publico, setPublico] = useState<PublicoSala>('Todos');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +102,7 @@ export function CreateSalaScreen({ route, navigation }: Props) {
     const payload: CreateSalaPayload = {
       nomeSala: nomeSala.trim(),
       capacidade: cap,
+      publico,
       ...(inicioISO ? { dataInicio: inicioISO } : {}),
       ...(fimISO ? { dataFim: fimISO } : {}),
     };
@@ -125,7 +129,7 @@ export function CreateSalaScreen({ route, navigation }: Props) {
 
       <ScrollView
         className="flex-1 px-gutter"
-        contentContainerClassName="gap-4 py-lg"
+        contentContainerClassName="gap-4 py-3xl"
         keyboardShouldPersistTaps="handled"
       >
         <Card contentClassName="gap-2">
@@ -170,6 +174,39 @@ export function CreateSalaScreen({ route, navigation }: Props) {
               maxLength={10}
             />
           </View>
+        </View>
+
+        <View className="gap-2">
+          <Text className="font-sans-semibold text-xs uppercase tracking-wide text-ink-muted">
+            Quem pode participar
+          </Text>
+          <View className="flex-row gap-2">
+            {(['Todos', 'Homens', 'Mulheres'] as const).map((p) => (
+              <Pressable
+                key={p}
+                onPress={() => setPublico(p)}
+                className={[
+                  'flex-1 items-center rounded-lg border py-2.5',
+                  publico === p
+                    ? 'border-primary bg-primary'
+                    : 'border-outline-variant bg-surface-container-low',
+                ].join(' ')}
+              >
+                <Text
+                  className={[
+                    'font-sans-medium text-sm',
+                    publico === p ? 'text-on-primary' : 'text-ink',
+                  ].join(' ')}
+                >
+                  {p}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text className="font-sans text-xs leading-4 text-ink-muted">
+            Num curso geral dá para ter uma turma só de homens e outra só de
+            mulheres. Quem não se encaixa não vê a turma.
+          </Text>
         </View>
 
         <TextField

@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import { tokenSeguro } from './tokenSeguro';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -9,7 +9,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('auth_token');
+  const token = await tokenSeguro.obter();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -40,7 +40,7 @@ api.interceptors.response.use(
     const isAuthRoute = AUTH_ROUTES.some((route) => url.includes(route));
 
     if (error.response?.status === 401 && !isAuthRoute) {
-      await AsyncStorage.removeItem('auth_token');
+      await tokenSeguro.limpar();
       onUnauthorized?.();
     }
     return Promise.reject(error);

@@ -1,27 +1,69 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, Chip, SectionHeader } from '../../components';
+import { Card, Chip } from '../../components';
+import { spacing, tracking } from '../../constants/theme';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useDeleteEvento, useEventosMes } from '../../hooks/queries/useEventos';
 import { useAuth } from '../../navigation/AuthContext';
+import { EspacoTabBar } from '../../navigation/TabBar';
 import type { AppStackParamList } from '../../navigation/types';
-import {
-  formatEventDate,
-  formatEventTime,
-  type EventoItem,
-} from '../../services/events.service';
+import { formatEventTime, type EventoItem } from '../../services/events.service';
 import { extractErrorMessage } from '../../services/api';
+import { urlImagem } from '../../services/imagem';
+
+/**
+ * Agenda da igreja.
+ *
+ * ═══ O CABEÇALHO ═══
+ * Era sobretítulo "Comunidade e fé" + título "Eventos da Igreja" + subtítulo
+ * "Cultos, encontros e datas especiais", e logo abaixo, num card separado, o
+ * nome do mês com duas setas. Quatro blocos de texto empilhados para dizer
+ * uma coisa só, e o CONTROLE (o mês) longe do título.
+ *
+ * Agora o mês é o título. Ele é o que muda, é o que a pessoa navega, e é o
+ * contexto de tudo que está embaixo — então ele merece o corpo grande e as
+ * setas ao lado, no mesmo bloco. "Agenda" vira sobretítulo pequeno, porque
+ * repetir o nome da tela em 26px é gastar a área mais valiosa com informação
+ * que a barra de abas já deu.
+ *
+ * ═══ NENHUM DIA VEM SELECIONADO ═══
+ * A tela abria com o dia de hoje já filtrado, o que produzia duas coisas
+ * ruins: a lista mostrava só os eventos de hoje (quase sempre nenhum), e
+ * precisava daquela linha "Mostrando dia 7 · toque para ver todos" para
+ * explicar o filtro que a própria tela tinha ligado sozinha.
+ *
+ * Abrir mostrando o MÊS INTEIRO é o comportamento certo: quem chega na agenda
+ * quer saber o que vem, não o que tem hoje. O dia vira filtro só quando a
+ * pessoa toca nele — e aí o próprio dia fica marcado no calendário, que já
+ * comunica o estado sem precisar de legenda.
+ *
+ * ═══ CATEGORIA VALE O MÊS ═══
+ * Consequência direta do item acima: com nenhum dia preso, escolher "Cultos"
+ * mostra todos os cultos do mês. Antes o dia de hoje limitava tudo, e a
+ * categoria parecia não funcionar.
+ *
+ * ═══ O CARD DE EVENTO ═══
+ * Ganhou bloco de data à esquerda — dia grande, mês pequeno. É o padrão de
+ * agenda que existe desde o papel: a data é a âncora que permite varrer a
+ * lista verticalmente sem ler nada. Antes a data estava no rodapé do card,
+ * junto do horário e do local, e era preciso ler para achar.
+ */
 
 const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+
+const MESES_CURTO = [
+  'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+  'jul', 'ago', 'set', 'out', 'nov', 'dez',
+];
 
 type TipoFilter = EventoItem['tipo'] | 'todos';
 
 const categoryFilters: { key: TipoFilter; label: string }[] = [
-  { key: 'todos', label: 'Todos os eventos' },
+  { key: 'todos', label: 'Tudo' },
   { key: 'Culto', label: 'Cultos' },
   { key: 'Reunião', label: 'Reuniões' },
   { key: 'Conferência', label: 'Conferências' },
@@ -34,11 +76,10 @@ function useMonthGrid(reference: Date) {
     const month = reference.getMonth();
     const firstWeekday = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const cells: (number | null)[] = [
+    return [
       ...Array(firstWeekday).fill(null),
       ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-    ];
-    return cells;
+    ] as (number | null)[];
   }, [reference]);
 }
 
@@ -54,36 +95,23 @@ export function EventsScreen() {
   const realToday = useMemo(() => new Date(), []);
 
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [selectedDay, setSelectedDay] = useState<number | null>(realToday.getDate());
+  // `null` de propósito: a agenda abre no mês inteiro. Ver o comentário do topo.
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [activeFilter, setActiveFilter] = useState<TipoFilter>('todos');
 
   const cells = useMonthGrid(currentDate);
-  const monthLabel = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const mesLabel = currentDate.toLocaleDateString('pt-BR', { month: 'long' });
+  const anoLabel = currentDate.getFullYear();
 
-  /**
-   * Todo o carregamento cabe nesta linha.
-   *
-   * O cache mantém os eventos do mês vivos fora da tela: ao voltar de "Novo
-   * evento", a lista aparece na hora e a revalidação acontece em segundo
-   * plano. `isPending` só é verdadeiro na primeiríssima carga (quando não há
-   * nada em cache) — depois disso usamos `isFetching`, que atualiza sem
-   * apagar o conteúdo da tela.
-   */
   const { data: eventosMes, isPending, isFetching, error: queryError } = useEventosMes(
     currentDate.getMonth() + 1,
     currentDate.getFullYear(),
   );
   const deleteEvento = useDeleteEvento();
-
   const error = queryError ? extractErrorMessage(queryError) : null;
 
-  function goToPreviousMonth() {
-    setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-    setSelectedDay(null);
-  }
-
-  function goToNextMonth() {
-    setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  function mudarMes(passo: number) {
+    setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() + passo, 1));
     setSelectedDay(null);
   }
 
@@ -99,12 +127,11 @@ export function EventsScreen() {
         {
           text: isRecorrente ? 'Excluir todas' : 'Excluir',
           style: 'destructive',
-          onPress: () => {
+          onPress: () =>
             deleteEvento.mutate(event.id, {
               onError: (e) =>
                 Alert.alert('Erro', extractErrorMessage(e, 'Não foi possível excluir.')),
-            });
-          },
+            }),
         },
       ],
     );
@@ -118,13 +145,24 @@ export function EventsScreen() {
     [eventosMes],
   );
 
-  const daysWithEvents = useMemo(() => new Set(allEvents.map((e) => e.dia)), [allEvents]);
+  /**
+   * Dias com evento, JÁ considerando a categoria escolhida.
+   *
+   * Antes o ponto no calendário ignorava o filtro: com "Cultos" selecionado,
+   * dias que só têm reunião continuavam marcados, e tocar neles trazia lista
+   * vazia. O marcador precisa concordar com o que a lista vai mostrar.
+   */
+  const daysWithEvents = useMemo(() => {
+    const lista =
+      activeFilter === 'todos' ? allEvents : allEvents.filter((e) => e.tipo === activeFilter);
+    return new Set(lista.map((e) => e.dia));
+  }, [allEvents, activeFilter]);
 
   const filteredEvents = useMemo(() => {
     let list = allEvents;
-    if (selectedDay !== null) list = list.filter((e) => e.dia === selectedDay);
     if (activeFilter !== 'todos') list = list.filter((e) => e.tipo === activeFilter);
-    return list;
+    if (selectedDay !== null) list = list.filter((e) => e.dia === selectedDay);
+    return [...list].sort((a, b) => a.dia - b.dia);
   }, [allEvents, selectedDay, activeFilter]);
 
   const isViewingCurrentMonth =
@@ -133,220 +171,417 @@ export function EventsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="flex-row items-center justify-between border-b border-outline-variant px-gutter py-3">
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={22} color={colors.primary} />
-        </Pressable>
-        <View className="flex-row items-center gap-2">
-          <Text className="font-serif-bold text-base text-primary">Eventos da Igreja</Text>
-          {/* Atualização em segundo plano: avisa que está sincronizando sem
-              tirar o conteúdo da tela. */}
-          {isFetching && !isPending ? (
-            <ActivityIndicator size="small" color={colors.gold} />
-          ) : null}
-        </View>
-        {isLeader ? (
-          <Pressable onPress={() => navigation.navigate('CreateEvento')} hitSlop={8}>
-            <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+      {/* ── Cabeçalho: o MÊS é o título ─────────────────────────────── */}
+      <View className="bg-background px-gutter pb-lg pt-md">
+        <View className="h-11 flex-row items-center justify-between">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Voltar"
+            onPress={() => navigation.goBack()}
+            hitSlop={12}
+            style={({ pressed }) => pressed && { opacity: 0.6 }}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.ink} />
           </Pressable>
-        ) : (
-          <View style={{ width: 22 }} />
-        )}
+
+          <View className="flex-row items-center gap-md">
+            {isFetching && !isPending ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : null}
+            {isLeader ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Novo evento"
+                onPress={() => navigation.navigate('CreateEvento')}
+                hitSlop={12}
+                style={({ pressed }) => pressed && { opacity: 0.6 }}
+              >
+                <Ionicons name="add" size={26} color={colors.primary} />
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+
+        <Text
+          className="mt-sm font-sans-semibold text-[11px] uppercase text-secondary"
+          style={{ letterSpacing: tracking.overline }}
+        >
+          Agenda da igreja
+        </Text>
+
+        {/* Título e navegação no MESMO bloco: o mês é o que muda, então o
+            controle mora ao lado dele em vez de num card separado. */}
+        <View className="mt-xs flex-row items-center justify-between">
+          <Text
+            className="flex-1 font-serif-bold text-[26px] capitalize leading-8 text-ink"
+            style={{ letterSpacing: tracking.title }}
+          >
+            {mesLabel}{' '}
+            <Text className="text-ink-muted">{anoLabel}</Text>
+          </Text>
+
+          <View className="flex-row items-center gap-xs">
+            <SetaMes direcao="anterior" onPress={() => mudarMes(-1)} />
+            <SetaMes direcao="proxima" onPress={() => mudarMes(1)} />
+          </View>
+        </View>
       </View>
 
-      <ScrollView className="flex-1 px-gutter" contentContainerClassName="gap-md py-lg">
-        <SectionHeader eyebrow="Comunidade e fé" title="Eventos da Igreja" />
-
-        {/* Calendário */}
-        <Card contentClassName="gap-3">
-          <View className="flex-row items-center justify-between">
-            <Text className="font-serif-bold text-base capitalize text-ink">{monthLabel}</Text>
-            <View className="flex-row gap-4">
-              <Pressable onPress={goToPreviousMonth} hitSlop={8}>
-                <Ionicons name="chevron-back" size={18} color={colors.primary} />
-              </Pressable>
-              <Pressable onPress={goToNextMonth} hitSlop={8}>
-                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-              </Pressable>
+      <ScrollView
+        className="flex-1 bg-background"
+        contentContainerClassName="gap-xl pb-xl"
+      >
+        {/* ── Calendário ──────────────────────────────────────────────── */}
+        <View className="px-gutter">
+          <Card variant="bordered" contentClassName="gap-md">
+            <View className="flex-row">
+              {WEEKDAYS.map((d, i) => (
+                <Text
+                  key={i}
+                  className="flex-1 text-center font-sans-semibold text-[11px] uppercase text-ink-muted"
+                  style={{ letterSpacing: tracking.overline }}
+                >
+                  {d}
+                </Text>
+              ))}
             </View>
-          </View>
 
-          <View className="flex-row justify-between">
-            {WEEKDAYS.map((day, index) => (
-              <Text key={index} className="w-9 text-center font-sans-semibold text-xs text-ink-muted">
-                {day}
-              </Text>
-            ))}
-          </View>
+            {isPending ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: 24 }} />
+            ) : (
+              <View className="flex-row flex-wrap">
+                {cells.map((day, index) => {
+                  const isToday = isViewingCurrentMonth && day === realToday.getDate();
+                  const isSelected = day !== null && day === selectedDay;
+                  const hasEvent = day !== null && daysWithEvents.has(day);
 
-          {/* Só a primeira carga esconde o calendário. Nas seguintes, os dias
-              continuam na tela enquanto os novos chegam. */}
-          {isPending ? (
-            <ActivityIndicator color={colors.gold} style={{ marginVertical: 16 }} />
-          ) : (
-            <View className="flex-row flex-wrap">
-              {cells.map((day, index) => {
-                const isToday = isViewingCurrentMonth && day === realToday.getDate();
-                const isSelected = day === selectedDay;
-                const hasEvent = day !== null && daysWithEvents.has(day);
-                return (
-                  <Pressable
-                    key={index}
-                    disabled={day === null}
-                    onPress={() => day && setSelectedDay(day === selectedDay ? null : day)}
-                    className="mb-1 w-[14.28%] items-center py-1.5"
-                  >
-                    {day ? (
-                      <View className="items-center gap-0.5">
-                        <View
-                          className={[
-                            'h-8 w-8 items-center justify-center rounded-full',
-                            isToday ? 'bg-gold' : isSelected ? 'bg-surface-container-high' : '',
-                          ].join(' ')}
-                        >
-                          <Text
+                  return (
+                    <Pressable
+                      key={index}
+                      disabled={day === null}
+                      accessibilityRole={day ? 'button' : undefined}
+                      accessibilityState={isSelected ? { selected: true } : {}}
+                      accessibilityLabel={
+                        day
+                          ? `Dia ${day}${hasEvent ? ', tem evento' : ''}${isSelected ? ', filtrando' : ''}`
+                          : undefined
+                      }
+                      onPress={() => day && setSelectedDay(day === selectedDay ? null : day)}
+                      // 44 de altura: a célula é o alvo, e sete numa linha de
+                      // 353 dão 50 de largura. Passa o mínimo com folga.
+                      style={{ width: '14.28%', height: 44 }}
+                      className="items-center justify-center"
+                    >
+                      {day ? (
+                        <View className="items-center">
+                          <View
                             className={[
-                              'font-sans-medium text-sm',
-                              isToday ? 'text-on-gold' : 'text-ink',
+                              'h-8 w-8 items-center justify-center rounded-full',
+                              isSelected
+                                ? 'bg-primary'
+                                : isToday
+                                  ? 'border border-primary'
+                                  : '',
                             ].join(' ')}
                           >
-                            {day}
-                          </Text>
+                            <Text
+                              className={[
+                                'text-[15px]',
+                                isSelected
+                                  ? 'font-sans-semibold text-on-primary'
+                                  : isToday
+                                    ? 'font-sans-semibold text-primary'
+                                    : 'font-sans-medium text-ink',
+                              ].join(' ')}
+                            >
+                              {day}
+                            </Text>
+                          </View>
+                          {/* O ponto vive FORA do círculo e sempre ocupa o
+                              mesmo espaço, com ou sem evento — senão a linha
+                              inteira sobe e desce conforme o mês. */}
+                          <View
+                            style={{
+                              height: 4,
+                              width: 4,
+                              marginTop: 2,
+                              borderRadius: 2,
+                              backgroundColor:
+                                hasEvent && !isSelected ? colors.gold : 'transparent',
+                            }}
+                          />
                         </View>
-                        {hasEvent && !isToday && (
-                          <View className="h-1 w-1 rounded-full bg-primary" />
-                        )}
-                      </View>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-        </Card>
-
-        {selectedDay !== null && (
-          <Pressable onPress={() => setSelectedDay(null)} hitSlop={8}>
-            <Text className="text-center font-sans text-xs text-secondary">
-              Mostrando dia {selectedDay} · toque para ver todos
-            </Text>
-          </Pressable>
-        )}
-
-        {/* Filtro de categoria */}
-        <View className="gap-2">
-          <Text className="font-sans-semibold text-xs uppercase tracking-wide text-ink-muted">
-            Categorias
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {categoryFilters.map((filter) => (
-              <Chip
-                key={filter.key}
-                label={filter.label}
-                active={activeFilter === filter.key}
-                onPress={() => setActiveFilter(filter.key)}
-              />
-            ))}
-          </View>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </Card>
         </View>
 
-        {/* Lista de eventos */}
-        {error ? (
-          <View className="items-center gap-3 py-8">
-            <Text className="text-center font-sans text-sm text-ink-muted">{error}</Text>
+        {/* ── Categorias ──────────────────────────────────────────────── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: spacing.gutter, gap: spacing.sm }}
+        >
+          {categoryFilters.map((filter) => (
+            <Chip
+              key={filter.key}
+              label={filter.label}
+              active={activeFilter === filter.key}
+              onPress={() => setActiveFilter(filter.key)}
+            />
+          ))}
+        </ScrollView>
+
+        {/* ── Lista ───────────────────────────────────────────────────── */}
+        <View className="gap-md px-gutter">
+          <View className="flex-row items-center justify-between">
+            <Text className="font-serif-bold text-lg text-ink">
+              {selectedDay !== null ? `Dia ${selectedDay}` : 'Neste mês'}
+            </Text>
+
+            {/* Sai o "toque para ver todos": quando um dia está preso, um
+                botão NOMEADO desfaz o filtro. Instrução em texto solto
+                explica a interface; botão é a interface. */}
+            {selectedDay !== null ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Ver o mês inteiro"
+                onPress={() => setSelectedDay(null)}
+                hitSlop={10}
+                style={({ pressed }) => pressed && { opacity: 0.6 }}
+                className="flex-row items-center gap-1"
+              >
+                <Ionicons name="close-circle" size={16} color={colors.secondary} />
+                <Text className="font-sans-semibold text-[13px] text-secondary">
+                  Ver o mês
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
-        ) : filteredEvents.length === 0 && !isPending ? (
-          <Text className="py-4 text-center font-sans text-sm text-ink-muted">
-            {selectedDay
-              ? `Nenhum evento no dia ${selectedDay}.`
-              : 'Nenhum evento neste mês.'}
-          </Text>
-        ) : (
-          <View className="gap-3">
-            {filteredEvents.map((event) => (
-              <Card key={`${event.id}-${event.dia}`} contentClassName="gap-2">
-                {event.imagemUrl ? (
-                  <Image
-                    source={{ uri: event.imagemUrl }}
-                    className="w-full rounded-lg"
-                    style={{ aspectRatio: 21 / 9 }}
-                    resizeMode="cover"
-                  />
-                ) : null}
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center gap-2">
-                    {event.cor ? (
-                      <View
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: event.cor }}
-                      />
-                    ) : null}
-                    <Text className="font-sans-semibold text-xs uppercase tracking-wide text-secondary">
-                      {event.tipo}
-                    </Text>
-                    {/* Deixa claro que é UM evento repetindo, não vários
-                        eventos iguais — era o que confundia ao excluir */}
-                    {event.recorrencia !== 'nenhuma' ? (
-                      <View className="flex-row items-center gap-1 rounded-full bg-surface-container-high px-2 py-0.5">
-                        <Ionicons name="repeat" size={11} color={colors.primary} />
-                        <Text className="font-sans-medium text-[10px] text-primary">
-                          {event.recorrencia === 'semanal' ? 'Semanal' : 'Mensal'}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  {canManageEvento(event, user?.id, user?.perfil) ? (
-                    <View className="flex-row gap-3">
-                      <Pressable
-                        onPress={() => navigation.navigate('CreateEvento', { id: String(event.id) })}
-                        hitSlop={8}
-                      >
-                        <Ionicons name="pencil-outline" size={14} color={colors.secondary} />
-                      </Pressable>
-                      <Pressable onPress={() => confirmDeleteEvento(event)} hitSlop={8}>
-                        <Ionicons name="trash-outline" size={14} color={colors.error} />
-                      </Pressable>
-                    </View>
-                  ) : null}
-                </View>
-                <Text className="font-serif-bold text-lg text-ink">{event.titulo}</Text>
-                {event.descricao ? (
-                  <Text className="font-sans text-sm leading-5 text-ink-muted">
-                    {event.descricao}
-                  </Text>
-                ) : null}
-                <View className="flex-row flex-wrap gap-4">
-                  <View className="flex-row items-center gap-1">
-                    <Ionicons name="calendar-outline" size={14} color={colors.outline} />
-                    <Text className="font-sans text-xs text-ink-muted">
-                      {formatEventDate(event.dataInicio)}
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center gap-1">
-                    <Ionicons name="time-outline" size={14} color={colors.outline} />
-                    <Text className="font-sans text-xs text-ink-muted">
-                      {formatEventTime(event.dataInicio)}
-                    </Text>
-                  </View>
-                  {event.local ? (
-                    <View className="flex-row items-center gap-1">
-                      <Ionicons name="location-outline" size={14} color={colors.outline} />
-                      <Text className="font-sans text-xs text-ink-muted">{event.local}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                {/* Sem inscrição/confirmação de presença: a igreja divulga o
-                    evento, quem quiser participar simplesmente vai. */}
-                <Button
-                  label="Ver detalhes"
-                  variant="secondary"
-                  onPress={() => navigation.navigate('EventoDetail', { id: String(event.id) })}
-                />
-              </Card>
-            ))}
-          </View>
-        )}
+
+          {error ? (
+            <Text className="py-8 text-center font-sans text-sm text-ink-muted">{error}</Text>
+          ) : filteredEvents.length === 0 && !isPending ? (
+            <Card variant="tinted" contentClassName="items-center gap-sm py-xl">
+              <MaterialCommunityIcons
+                name="calendar-blank-outline"
+                size={26}
+                color={colors.inkMuted}
+              />
+              <Text className="text-center font-sans text-sm text-ink-muted">
+                {selectedDay !== null
+                  ? `Nenhum evento no dia ${selectedDay}.`
+                  : activeFilter !== 'todos'
+                    ? `Nenhum evento desta categoria neste mês.`
+                    : 'Nenhum evento neste mês.'}
+              </Text>
+            </Card>
+          ) : (
+            filteredEvents.map((event) => (
+              <CardEvento
+                key={`${event.id}-${event.dia}`}
+                event={event}
+                mes={currentDate.getMonth()}
+                podeGerenciar={canManageEvento(event, user?.id, user?.perfil)}
+                onAbrir={() =>
+                  navigation.navigate('EventoDetail', { id: String(event.id) })
+                }
+                onEditar={() =>
+                  navigation.navigate('CreateEvento', { id: String(event.id) })
+                }
+                onExcluir={() => confirmDeleteEvento(event)}
+              />
+            ))
+          )}
+        </View>
+
+        <EspacoTabBar />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────── */
+
+function SetaMes({
+  direcao,
+  onPress,
+}: {
+  direcao: 'anterior' | 'proxima';
+  onPress: () => void;
+}) {
+  const colors = useThemeColors();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={direcao === 'anterior' ? 'Mês anterior' : 'Próximo mês'}
+      onPress={onPress}
+      hitSlop={10}
+      style={({ pressed }) => [
+        {
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.surfaceDim,
+        },
+        pressed && { opacity: 0.6 },
+      ]}
+    >
+      <Ionicons
+        name={direcao === 'anterior' ? 'chevron-back' : 'chevron-forward'}
+        size={19}
+        color={colors.ink}
+      />
+    </Pressable>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────── */
+
+type CardEventoProps = {
+  event: EventoItem & { dia: number };
+  mes: number;
+  podeGerenciar: boolean;
+  onAbrir: () => void;
+  onEditar: () => void;
+  onExcluir: () => void;
+};
+
+/**
+ * Card com bloco de data à esquerda.
+ *
+ * A data saiu do rodapé e virou âncora: dia em serifada grande, mês em
+ * versalete. É o que permite varrer a lista verticalmente sem ler título
+ * nenhum — os números formam uma coluna, e o olho acha "dia 17" na hora.
+ *
+ * O botão "Ver detalhes" saiu. O card inteiro abre o evento, e um botão de
+ * largura total dentro de cada item de lista empurra o próximo card para
+ * fora da tela sem acrescentar nada.
+ */
+function CardEvento({
+  event,
+  mes,
+  podeGerenciar,
+  onAbrir,
+  onEditar,
+  onExcluir,
+}: CardEventoProps) {
+  const colors = useThemeColors();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${event.titulo}, dia ${event.dia} de ${MESES_CURTO[mes]}, às ${formatEventTime(event.dataInicio)}`}
+      onPress={onAbrir}
+      style={({ pressed }) => pressed && { opacity: 0.7 }}
+    >
+      <Card variant="bordered" contentClassName="flex-row gap-lg">
+        {/* Bloco de data */}
+        <View className="items-center" style={{ width: 44 }}>
+          <Text
+            className="font-serif-bold text-[24px] leading-7 text-primary"
+            style={{ letterSpacing: tracking.heading }}
+          >
+            {String(event.dia).padStart(2, '0')}
+          </Text>
+          <Text
+            className="font-sans-semibold text-[11px] uppercase text-ink-muted"
+            style={{ letterSpacing: tracking.overline }}
+          >
+            {MESES_CURTO[mes]}
+          </Text>
+        </View>
+
+        <View className="flex-1 gap-xs">
+          <View className="flex-row items-center gap-2">
+            {event.cor ? (
+              <View
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: event.cor }}
+              />
+            ) : null}
+            <Text
+              className="font-sans-semibold text-[11px] uppercase text-secondary"
+              style={{ letterSpacing: tracking.overline }}
+            >
+              {event.tipo}
+            </Text>
+            {/* Deixa claro que é UM evento repetindo, não vários eventos
+                iguais — era o que confundia na hora de excluir. */}
+            {event.recorrencia !== 'nenhuma' ? (
+              <MaterialCommunityIcons name="repeat" size={13} color={colors.inkMuted} />
+            ) : null}
+          </View>
+
+          <Text numberOfLines={2} className="font-serif-bold text-base leading-6 text-ink">
+            {event.titulo}
+          </Text>
+
+          <View className="flex-row flex-wrap items-center gap-md">
+            <View className="flex-row items-center gap-1">
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={13}
+                color={colors.inkMuted}
+              />
+              <Text className="font-sans text-[13px] text-ink-muted">
+                {formatEventTime(event.dataInicio)}
+              </Text>
+            </View>
+            {event.local ? (
+              <View className="flex-1 flex-row items-center gap-1">
+                <MaterialCommunityIcons
+                  name="map-marker-outline"
+                  size={13}
+                  color={colors.inkMuted}
+                />
+                <Text numberOfLines={1} className="flex-1 font-sans text-[13px] text-ink-muted">
+                  {event.local}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          {event.imagemUrl ? (
+            <Image
+              source={{ uri: urlImagem(event.imagemUrl, { largura: 260, altura: 88 }) }}
+              className="mt-xs w-full rounded-sm"
+              style={{ height: 88 }}
+              resizeMode="cover"
+              accessible={false}
+            />
+          ) : null}
+        </View>
+
+        {podeGerenciar ? (
+          <View className="gap-lg">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Editar ${event.titulo}`}
+              onPress={onEditar}
+              hitSlop={12}
+              style={({ pressed }) => pressed && { opacity: 0.6 }}
+            >
+              <MaterialCommunityIcons name="pencil-outline" size={17} color={colors.secondary} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Excluir ${event.titulo}`}
+              onPress={onExcluir}
+              hitSlop={12}
+              style={({ pressed }) => pressed && { opacity: 0.6 }}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={17} color={colors.error} />
+            </Pressable>
+          </View>
+        ) : null}
+      </Card>
+    </Pressable>
   );
 }

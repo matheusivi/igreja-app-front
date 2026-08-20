@@ -9,16 +9,34 @@ import {
 /**
  * Chaves de cache dos eventos.
  *
- * Tudo aninhado sob `['eventos']` de propósito: invalidar essa raiz atualiza
- * de uma vez a lista do mês, o card da Home e qualquer tela futura que use
- * eventos — sem precisar lembrar de cada uma.
+ * `meses()` é o prefixo de todos os meses. Ele existe porque não dá para
+ * mirar um mês só: evento recorrente aparece em vários, e mudar a data move
+ * o evento de um mês para outro — invalidar só a data nova deixaria um
+ * fantasma no mês antigo.
  */
 export const eventosKeys = {
   all: ['eventos'] as const,
+  meses: () => ['eventos', 'mes'] as const,
   mes: (mes: number, ano: number) => ['eventos', 'mes', mes, ano] as const,
   proximo: () => ['eventos', 'proximo'] as const,
   detalhe: (id: string | number) => ['eventos', 'detalhe', String(id)] as const,
 };
+
+/**
+ * Recarrega os meses e o card da Home.
+ *
+ * Sem `refetchType: 'all'` de propósito. Cada mês visitado vira uma entrada
+ * separada no cache, e com 'all' criar um evento dispararia refetch de todos
+ * os meses já abertos — um custo que cresce conforme a pessoa navega. No
+ * padrão, só o que está montado recarrega na hora; os demais ficam marcados
+ * como velhos e se atualizam ao serem abertos.
+ */
+function invalidarAgenda(queryClient: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: eventosKeys.meses() }),
+    queryClient.invalidateQueries({ queryKey: eventosKeys.proximo() }),
+  ]);
+}
 
 /** Eventos de um mês específico (tela de Eventos). */
 export function useEventosMes(mes: number, ano: number) {
@@ -51,40 +69,43 @@ export function useEvento(id: string) {
   });
 }
 
+/** Criar evento: aparece na agenda e pode virar o próximo da Home. */
 export function useCreateEvento() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateEventoPayload) => eventsService.createEvento(payload),
-    onSuccess: () => {
-      // Uma linha: lista do mês e card da Home se atualizam sozinhos.
-      // refetchType 'all' força a rebuscar também as telas que estão montadas
-      // mas fora de foco (a Home vive numa aba, atrás da tela de eventos).
-      queryClient.invalidateQueries({ queryKey: eventosKeys.all, refetchType: 'all' });
-    },
+    onSuccess: () => invalidarAgenda(queryClient),
   });
 }
 
+/**
+ * Editar evento. Além da agenda, o detalhe daquele evento muda — é a tela de
+ * onde a edição costuma partir.
+ */
 export function useUpdateEvento() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<CreateEventoPayload> }) =>
       eventsService.updateEvento(id, payload),
-    onSuccess: () => {
-      // refetchType 'all' força a rebuscar também as telas que estão montadas
-      // mas fora de foco (a Home vive numa aba, atrás da tela de eventos).
-      queryClient.invalidateQueries({ queryKey: eventosKeys.all, refetchType: 'all' });
-    },
+    onSuccess: (_data, { id }) =>
+      Promise.all([
+        invalidarAgenda(queryClient),
+        queryClient.invalidateQueries({ queryKey: eventosKeys.detalhe(id) }),
+      ]),
   });
 }
 
+/**
+ * Excluir evento. O detalhe é REMOVIDO do cache, não invalidado: buscar de
+ * novo um evento que acabou de deixar de existir seria um GET certo a 404.
+ */
 export function useDeleteEvento() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => eventsService.deleteEvento(id),
-    onSuccess: () => {
-      // refetchType 'all' força a rebuscar também as telas que estão montadas
-      // mas fora de foco (a Home vive numa aba, atrás da tela de eventos).
-      queryClient.invalidateQueries({ queryKey: eventosKeys.all, refetchType: 'all' });
+    onSuccess: async (_data, id) => {
+      queryClient.removeQueries({ queryKey: eventosKeys.detalhe(id) });
+      await invalidarAgenda(queryClient);
     },
   });
 }

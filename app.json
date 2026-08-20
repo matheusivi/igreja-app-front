@@ -1,13 +1,20 @@
 {
   "expo": {
-    "name": "igreja-app-front",
-    "slug": "igreja-app-front",
+    "name": "IBVI Church",
+    "slug": "ibvi-church",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "br.com.ibvi.app"
     },
     "plugins": [
       [
@@ -16,11 +23,14 @@
           "photosPermission": "O IBVI usa suas fotos para você escolher a imagem do seu perfil.",
           "cameraPermission": "O IBVI usa a câmera para você tirar a foto do seu perfil."
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-updates"
     ],
     "android": {
+      "package": "br.com.ibvi.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

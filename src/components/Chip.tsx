@@ -25,16 +25,25 @@ const toneClasses: Record<ChipTone, { active: string; inactive: string; text: st
     text: 'text-on-gold',
     textInactive: 'text-ink-muted',
   },
+  // `success` usa o verde FORTE, não o `success-soft`. Branco sobre
+  // `success-soft` dava 2,15:1 — o selo "Administrador" ficava legível só
+  // porque a fonte é grossa. Com `success` + `on-success` são 6,5:1 no claro
+  // e 7,7:1 no escuro.
   success: {
-    active: 'bg-success-soft border-success-soft',
+    active: 'bg-success border-success',
     inactive: 'bg-surface-container-low border-outline-variant',
     text: 'text-on-success',
     textInactive: 'text-ink-muted',
   },
+  // O par certo de `secondary-soft` é `on-secondary-soft`, não `on-secondary`.
+  // Com o par errado o selo "Batizado" ficava claro sobre claro no tema claro
+  // (apagado) e escuro sobre escuro no tema escuro (ilegível). A borda em
+  // `secondary` dá o contorno que o fundo rosado sozinho não dá contra o
+  // fundo da tela.
   secondary: {
-    active: 'bg-secondary-soft border-secondary-soft',
+    active: 'bg-secondary-soft border-secondary',
     inactive: 'bg-surface-container-low border-outline-variant',
-    text: 'text-on-secondary',
+    text: 'text-on-secondary-soft',
     textInactive: 'text-ink-muted',
   },
 };

@@ -115,10 +115,14 @@ export function agruparCapitulos(
  * existiam. TypeScript não valida resposta de rede, então o erro só aparecia
  * como um card vazio.
  */
+export type PublicoSala = 'Todos' | 'Homens' | 'Mulheres';
+
 export type Sala = {
   id: number;
   cursoId: number;
   nomeSala: string;
+  /** Quem pode participar desta turma. */
+  publico: PublicoSala;
   dataInicio: string | null;
   dataFim: string | null;
   status: 'ativa' | 'inativa' | 'concluída';
@@ -133,6 +137,7 @@ export type CreateSalaPayload = {
   dataInicio?: string;
   dataFim?: string;
   capacidade?: number | null;
+  publico?: PublicoSala;
 };
 
 export type UpdateSalaPayload = Partial<CreateSalaPayload> & {
@@ -143,6 +148,35 @@ export type UpdateSalaPayload = Partial<CreateSalaPayload> & {
 export function vagasRestantes(sala: Sala): number | null {
   if (sala.capacidade === null) return null;
   return Math.max(0, sala.capacidade - sala.totalMatriculas);
+}
+
+/**
+ * A pessoa pode participar desta turma?
+ *
+ * O servidor já filtra na listagem, mas a tela também precisa saber para
+ * explicar o motivo em vez de mostrar uma lista vazia.
+ */
+export function podeParticipar(
+  publico: PublicoSala,
+  sexo: string | undefined,
+): boolean {
+  if (publico === 'Todos') return true;
+  if (publico === 'Homens') return sexo === 'Masculino';
+  return sexo === 'Feminino';
+}
+
+/** "Este curso é exclusivo para mulheres", ou null se a pessoa tem acesso. */
+export function motivoSemAcesso(
+  categoria: Curso['categoria'],
+  sexo: string | undefined,
+): string | null {
+  if (categoria === 'Homens' && sexo !== 'Masculino') {
+    return 'Este curso é exclusivo para homens.';
+  }
+  if (categoria === 'Mulheres' && sexo !== 'Feminino') {
+    return 'Este curso é exclusivo para mulheres.';
+  }
+  return null;
 }
 
 /** "10/03/2026 a 20/05/2026", "a partir de 10/03/2026", ou null. */

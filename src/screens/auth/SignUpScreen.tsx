@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Button, Chip, TextField } from '../../components';
+import { Button, Chip, RequisitosSenha, avaliarSenha, senhaValida, TextField } from '../../components';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { NOME_IGREJA } from '../../constants/igreja';
 import { useAuth } from '../../navigation/AuthContext';
 import type { AuthStackParamList } from '../../navigation/types';
 import { extractErrorMessage } from '../../services/api';
@@ -23,18 +24,16 @@ export function SignUpScreen({ navigation }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasMinLength = password.length >= 8;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
+  // A mesma avaliação que a lista de requisitos desenha. Recalcular à mão
+  // aqui seria a porta para o botão discordar do que a tela mostra.
+  const forcaSenha = avaliarSenha(password);
   const passwordsMatch = password.length > 0 && password === confirmPassword;
 
   const canSubmit =
     fullName.trim().length > 0 &&
     email.trim().length > 0 &&
     gender !== null &&
-    hasMinLength &&
-    hasUppercase &&
-    hasNumber &&
+    senhaValida(forcaSenha) &&
     passwordsMatch &&
     acceptedTerms;
 
@@ -59,7 +58,7 @@ export function SignUpScreen({ navigation }: Props) {
   return (
     <AuthLayout
       title="Junte-se à nossa comunidade"
-      subtitle="Prepare o seu coração para se conectar com a família IBVI Nova Andradina."
+      subtitle={`Prepare o seu coração para se conectar com a ${NOME_IGREJA}.`}
       footer={
         <View className="flex-row gap-1">
           <Text className="font-sans text-sm text-ink-muted">Já possui uma conta?</Text>
@@ -99,6 +98,16 @@ export function SignUpScreen({ navigation }: Props) {
         value={password}
         onChangeText={(v) => { setPassword(v); setError(null); }}
       />
+      {/* ═══ AS REGRAS APARECEM ANTES DO ERRO ═══
+          O botão de criar conta já dependia destas três condições, mas em
+          silêncio: quem digitava uma senha curta via o botão apagado e nada
+          explicando o motivo. Foi onde a primeira pessoa a testar o app
+          travou.
+
+          A lista acende conforme cada regra é cumprida. Custa três linhas e
+          troca "adivinhe o que eu quero" por "faltam duas". */}
+      <RequisitosSenha senha={password} />
+
       <TextField
         label="Confirmar senha"
         secureToggle
@@ -118,7 +127,7 @@ export function SignUpScreen({ navigation }: Props) {
           color={acceptedTerms ? colors.gold : colors.outline}
         />
         <Text className="flex-1 font-sans text-sm leading-5 text-ink-muted">
-          Concordo com os Termos de Uso e a Política de Privacidade da IBVI Nova Andradina.
+          {`Concordo com os Termos de Uso e a Política de Privacidade da ${NOME_IGREJA}.`}
         </Text>
       </Pressable>
 

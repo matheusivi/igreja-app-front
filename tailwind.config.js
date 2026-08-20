@@ -38,11 +38,13 @@ module.exports = {
         'outline-variant': 'rgb(var(--color-outline-variant) / <alpha-value>)',
 
         primary: 'rgb(var(--color-primary) / <alpha-value>)',
+        'primary-edge': 'rgb(var(--color-primary-edge) / <alpha-value>)',
         'on-primary': 'rgb(var(--color-on-primary) / <alpha-value>)',
         gold: 'rgb(var(--color-gold) / <alpha-value>)',
         'on-gold': 'rgb(var(--color-on-gold) / <alpha-value>)',
         'gold-soft': 'rgb(var(--color-gold-soft) / <alpha-value>)',
         'gold-fixed': 'rgb(var(--color-gold-fixed) / <alpha-value>)',
+        'on-gold-fixed': 'rgb(var(--color-on-gold-fixed) / <alpha-value>)',
 
         secondary: 'rgb(var(--color-secondary) / <alpha-value>)',
         'on-secondary': 'rgb(var(--color-on-secondary) / <alpha-value>)',
@@ -69,19 +71,27 @@ module.exports = {
         'sans-medium': ['PlusJakartaSans_500Medium'],
         'sans-semibold': ['PlusJakartaSans_600SemiBold'],
       },
+      // Escala ANINHADA (DESIGN.md §4): o que está dentro tem canto mais
+      // fechado que o que o contém. Raio único em tudo era um dos itens do
+      // diagnóstico de "cara de template".
       borderRadius: {
-        sm: '2px',
-        DEFAULT: '4px',
-        md: '4px', // botões — "crisp", conforme seção Components do DESIGN.md
-        lg: '8px', // cards
-        xl: '12px',
+        sm: '6px', // imagem, campo e selo DENTRO de um card
+        DEFAULT: '6px',
+        button: '5px', // aresta viva
+        md: '10px', // chip, selo
+        lg: '16px', // card
+        xl: '24px', // superfície imersiva, hero, folha
       },
+      // DESIGN.md §3. A escala anterior pulava 12 → 24 → 48; sem degrau no
+      // meio, toda tela caía no 24 e o espaçamento ficava uniforme.
       spacing: {
         xs: '4px',
-        sm: '12px',
-        md: '24px',
-        lg: '48px',
-        xl: '80px',
+        sm: '8px',
+        md: '12px',
+        lg: '16px',
+        xl: '24px',
+        '2xl': '32px',
+        '3xl': '48px',
         gutter: '20px',
       },
     },

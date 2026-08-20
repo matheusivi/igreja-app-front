@@ -1,9 +1,18 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  type AlertButton,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Avatar, Button, Card, TextField } from '../../components';
+import { Avatar, Button, TextField, TituloGrupo, TopBar } from '../../components';
+import { elevation, tracking } from '../../constants/theme';
 import {
   useAtualizarSala,
   useCancelarMatricula,
@@ -13,7 +22,9 @@ import {
   useHistoricoMatriculas,
   useMatricular,
   useSalas,
+  cursosKeys,
 } from '../../hooks/queries/useCursos';
+import { useAtualizarPuxando } from '../../hooks/useAtualizarPuxando';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAuth } from '../../navigation/AuthContext';
 import type { AppStackParamList } from '../../navigation/types';
@@ -21,36 +32,66 @@ import { extractErrorMessage } from '../../services/api';
 import {
   agruparCapitulos,
   formatPeriodoSala,
+  motivoSemAcesso,
   vagasRestantes,
+  type Sala,
 } from '../../services/courses.service';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CursoDetail'>;
 
+/** Acima disto a ementa começa recolhida. */
+const AULAS_VISIVEIS = 5;
+
+/**
+ * Um curso e suas turmas.
+ *
+ * Três decisões que moldam esta tela:
+ *
+ * 1. **Uma ação por turma.** Para um líder matriculado, cada cartão trazia
+ *    QUATRO botões de largura cheia, todos `secondary` — com três turmas,
+ *    doze botões de peso idêntico, e nada sendo a ação principal. Agora é um
+ *    botão primário e um "···" com o resto.
+ *
+ * 2. **A ementa recolhe em cinco aulas.** Ela vem antes das turmas porque é
+ *    o que decide a matrícula, mas num curso de trinta aulas empurrava a
+ *    ação para fora da tela.
+ *
+ * 3. **Saiu a caixa cinza de 160px no topo** — espaço reservado para uma
+ *    imagem que não existe, acima da dobra, sem dizer nada.
+ */
 export function CourseDetailScreen({ route, navigation }: Props) {
+  // Turma criada ou excluída noutro celular aparece ao puxar.
+  const { controle } = useAtualizarPuxando([cursosKeys.all]);
+
   const colors = useThemeColors();
   const { user } = useAuth();
+  const cursoId = route.params.id;
+
   const isLeader = ['Líder', 'Pastor', 'Administrador'].includes(user?.perfil ?? '');
-  const { data: curso, isPending: isLoadingCurso, error: cursoError } = useCurso(route.params.id);
-  const { data: salas = [] } = useSalas(route.params.id);
+  const { data: curso, isPending: isLoading, error: cursoError } = useCurso(cursoId);
+  const { data: salas = [] } = useSalas(cursoId);
   const { data: historico = [] } = useHistoricoMatriculas();
 
   const matricular = useMatricular();
   const cancelarMatricula = useCancelarMatricula();
-  const excluirCurso = useExcluirCurso();
-
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [buscaTurma, setBuscaTurma] = useState('');
   const atualizarSala = useAtualizarSala();
   const excluirSala = useExcluirSala();
+  const excluirCurso = useExcluirCurso();
 
-  const canManage =
-    curso?.criador.id === user?.id || ['Pastor', 'Administrador'].includes(user?.perfil ?? '');
-  const isLoading = isLoadingCurso;
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [buscaTurma, setBuscaTurma] = useState('');
+  const [ementaAberta, setEmentaAberta] = useState(false);
+
+  const podeGerenciarCurso =
+    curso?.criador.id === user?.id ||
+    ['Pastor', 'Administrador'].includes(user?.perfil ?? '');
   const error = cursoError ? extractErrorMessage(cursoError) : null;
 
-  const enrollingId =
-    (matricular.isPending ? matricular.variables : null) ??
-    (cancelarMatricula.isPending ? cancelarMatricula.variables : null) ??
+  /** Qual turma está com requisição em voo — só o botão dela gira. */
+  const emVoo =
+    (matricular.isPending ? matricular.variables?.salaId : null) ??
+    (cancelarMatricula.isPending ? cancelarMatricula.variables?.salaId : null) ??
+    (atualizarSala.isPending ? atualizarSala.variables?.salaId : null) ??
     null;
 
   /**
@@ -58,23 +99,21 @@ export function CourseDetailScreen({ route, navigation }: Props) {
    *
    * Antes esta tela mantinha a lista de turmas matriculadas num `useState`
    * paralelo. Ao cancelar, ela só apagava o item do próprio estado — o resto
-   * do app (Perfil, por exemplo) continuava achando que a matrícula existia.
-   * Agora existe uma fonte só: o histórico vindo do cache.
+   * do app continuava achando que a matrícula existia. Uma fonte só.
    */
-  const enrolledSalaIds = useMemo(
+  const matriculadoEm = useMemo(
     () =>
       new Set(
         historico
-          .filter((m) => m.status === 'ativo' && String(m.cursoId) === route.params.id)
+          .filter((m) => m.status === 'ativo' && String(m.cursoId) === cursoId)
           .map((m) => m.salaId),
       ),
-    [historico, route.params.id],
+    [historico, cursoId],
   );
 
   /**
-   * A busca cobre o nome do líder e o nome da turma. Com várias turmas do
-   * mesmo curso, procurar pelo líder é como a pessoa costuma se orientar
-   * ("a turma do João"), então ele vem primeiro.
+   * A busca cobre líder e nome da turma. Com várias turmas do mesmo curso,
+   * procurar pelo líder é como a pessoa se orienta ("a turma do João").
    */
   const salasFiltradas = useMemo(() => {
     const termo = buscaTurma.trim().toLowerCase();
@@ -86,16 +125,58 @@ export function CourseDetailScreen({ route, navigation }: Props) {
     );
   }, [salas, buscaTurma]);
 
-  // `?? []` porque o backend só devolve `capitulos` depois da migration —
-  // sem isso a tela quebraria com "cannot read length of undefined" em quem
-  // ainda estiver com o servidor antigo.
+  // `?? []` porque o backend só devolve `capitulos` depois da migration — sem
+  // isso a tela quebraria em quem ainda estiver com o servidor antigo.
   const capitulos = curso?.capitulos ?? [];
+  const aulasVisiveis =
+    ementaAberta || capitulos.length <= AULAS_VISIVEIS + 1
+      ? capitulos
+      : capitulos.slice(0, AULAS_VISIVEIS);
 
-  const encerrandoId = atualizarSala.isPending
-    ? atualizarSala.variables?.salaId
-    : null;
+  // O servidor já não devolve turmas para quem não tem acesso. A tela precisa
+  // saber o motivo para dizer "é exclusivo para mulheres" em vez de deixar a
+  // pessoa achando que o curso está sem turma e voltar todo mês.
+  const semAcesso = curso ? motivoSemAcesso(curso.categoria, user?.sexo) : null;
 
-  function confirmarEncerramento(sala: (typeof salas)[number]) {
+  function matricularEm(salaId: number) {
+    setErroAcao(null);
+    matricular.mutate(
+      { salaId, cursoId },
+      {
+        onSuccess: () => navigation.navigate('Sala', { salaId, cursoNome: curso!.nome }),
+        onError: (e) =>
+          setErroAcao(extractErrorMessage(e, 'Não foi possível concluir a matrícula.')),
+      },
+    );
+  }
+
+  function cancelar(sala: Sala) {
+    Alert.alert(
+      'Cancelar matrícula',
+      `Sair de "${sala.nomeSala}"? Você pode se matricular de novo enquanto houver vaga.`,
+      [
+        { text: 'Voltar', style: 'cancel' },
+        {
+          text: 'Cancelar matrícula',
+          style: 'destructive',
+          onPress: () => {
+            setErroAcao(null);
+            cancelarMatricula.mutate(
+              { salaId: sala.id, cursoId },
+              {
+                onError: (e) =>
+                  setErroAcao(
+                    extractErrorMessage(e, 'Não foi possível cancelar a matrícula.'),
+                  ),
+              },
+            );
+          },
+        },
+      ],
+    );
+  }
+
+  function encerrar(sala: Sala) {
     Alert.alert(
       'Encerrar turma',
       `Encerrar "${sala.nomeSala}"? Os ${sala.totalMatriculas} matriculados passam a constar como concluintes, e a turma sai desta lista — ela continua no histórico de quem participou.`,
@@ -105,7 +186,7 @@ export function CourseDetailScreen({ route, navigation }: Props) {
           text: 'Encerrar',
           onPress: () =>
             atualizarSala.mutate(
-              { salaId: sala.id, payload: { status: 'concluída' } },
+              { salaId: sala.id, cursoId, payload: { status: 'concluída' } },
               {
                 onError: (e) =>
                   Alert.alert(
@@ -119,12 +200,10 @@ export function CourseDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  function confirmarExclusaoTurma(sala: (typeof salas)[number]) {
-    const temGente = sala.totalMatriculas > 0;
-
+  function excluirTurma(sala: Sala) {
     Alert.alert(
       'Excluir turma',
-      temGente
+      sala.totalMatriculas > 0
         ? `"${sala.nomeSala}" tem ${sala.totalMatriculas} matriculado(s). Excluir apaga o registro de quem participou — só o administrador consegue. Para finalizá-la preservando o histórico, use "Encerrar turma".`
         : `Excluir "${sala.nomeSala}"? Essa ação não pode ser desfeita.`,
       [
@@ -133,364 +212,493 @@ export function CourseDetailScreen({ route, navigation }: Props) {
           text: 'Excluir',
           style: 'destructive',
           onPress: () =>
-            excluirSala.mutate(sala.id, {
-              onError: (e) =>
-                Alert.alert(
-                  'Não foi possível excluir',
-                  extractErrorMessage(e, 'Tente novamente.'),
-                ),
-            }),
+            excluirSala.mutate(
+              { salaId: sala.id, cursoId },
+              {
+                onError: (e) =>
+                  Alert.alert(
+                    'Não foi possível excluir',
+                    extractErrorMessage(e, 'Tente novamente.'),
+                  ),
+              },
+            ),
         },
       ],
     );
   }
 
-  function handleEnroll(salaId: number) {
-    setActionError(null);
-    matricular.mutate(salaId, {
-      onSuccess: () => navigation.navigate('Sala', { salaId, cursoNome: curso!.nome }),
-      onError: (e) =>
-        setActionError(extractErrorMessage(e, 'Não foi possível concluir a matrícula.')),
-    });
-  }
+  /**
+   * Tudo o que não é a ação principal da turma.
+   *
+   * Um menu nativo em vez de três botões: quem se matricula não precisa
+   * atravessar "Ver participantes" e "Encerrar turma" para chegar ao que veio
+   * fazer. E as opções mudam com o papel, então uma pilha fixa de botões
+   * mostraria coisas inúteis para a maioria.
+   */
+  function abrirMenuTurma(sala: Sala) {
+    const opcoes: AlertButton[] = [];
 
-  function handleCancel(salaId: number) {
-    setActionError(null);
-    cancelarMatricula.mutate(salaId, {
-      onError: (e) =>
-        setActionError(extractErrorMessage(e, 'Não foi possível cancelar a matrícula.')),
-    });
+    if (matriculadoEm.has(sala.id)) {
+      opcoes.push({ text: 'Cancelar minha matrícula', onPress: () => cancelar(sala) });
+    }
+    if (isLeader) {
+      opcoes.push({
+        text: 'Ver participantes',
+        onPress: () =>
+          navigation.navigate('SalaParticipantes', {
+            salaId: sala.id,
+            cursoTitulo: curso!.nome,
+          }),
+      });
+      opcoes.push({ text: 'Encerrar turma', onPress: () => encerrar(sala) });
+      opcoes.push({
+        text: 'Excluir turma',
+        style: 'destructive',
+        onPress: () => excluirTurma(sala),
+      });
+    }
+    opcoes.push({ text: 'Fechar', style: 'cancel' });
+
+    Alert.alert(sala.nomeSala, undefined, opcoes);
   }
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <View className="flex-row items-center justify-between border-b border-outline-variant px-gutter py-3">
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={22} color={colors.primary} />
-        </Pressable>
-        <Text className="font-serif-bold text-base text-primary" numberOfLines={1}>
-          IBVI Nova Andradina
-        </Text>
-        {canManage ? (
-          <Pressable
-            onPress={() => navigation.navigate('EditCurso', { id: route.params.id })}
-            hitSlop={8}
-          >
-            <Ionicons name="pencil-outline" size={20} color={colors.primary} />
-          </Pressable>
-        ) : (
-          <View style={{ width: 20 }} />
-        )}
-      </View>
+      {/* Barra sem título: o nome do curso abre o conteúdo em 30px, cem
+          pixels abaixo. Repetir aqui era dizer a mesma coisa duas vezes — e
+          a versão da barra ainda era a pior, truncada em uma linha. */}
+      <TopBar
+        title=""
+        onBack={() => navigation.goBack()}
+        {...(podeGerenciarCurso
+          ? {
+              actionIcon: 'pencil-outline' as const,
+              actionLabel: 'Editar este curso',
+              onActionPress: () => navigation.navigate('EditCurso', { id: cursoId }),
+            }
+          : {})}
+      />
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.gold} />
+        <View className="flex-1 items-center justify-center bg-background">
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : error || !curso ? (
-        <View className="flex-1 items-center justify-center gap-3 px-gutter">
-          <Text className="text-center font-sans text-sm text-ink-muted">
+        <View className="flex-1 items-center justify-center gap-md bg-background px-gutter">
+          <Text className="text-center font-sans text-[14px] text-ink-muted">
             {error ?? 'Curso não encontrado.'}
           </Text>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-            <Text className="font-sans-semibold text-sm text-secondary">Voltar</Text>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
+            <Text className="font-sans-semibold text-[14px] text-secondary">Voltar</Text>
           </Pressable>
         </View>
       ) : (
-        <ScrollView contentContainerClassName="gap-md px-gutter py-lg">
-          <View className="h-40 items-center justify-center rounded-lg bg-surface-container-high">
-            <MaterialCommunityIcons name="book-open-page-variant" size={40} color={colors.gold} />
-          </View>
+        <ScrollView
+          className="flex-1 bg-background px-gutter"
+          contentContainerClassName="pb-3xl pt-lg"
+          keyboardShouldPersistTaps="handled"
+          refreshControl={controle}
+        >
+          {/* ═══ IDENTIDADE ══════════════════════════════════════════
+              Três blocos com pesos DIFERENTES, e não três parágrafos
+              cinzentos empilhados.
 
-          <View className="gap-2">
-            <Text className="self-start rounded-full bg-success-soft px-3 py-1 font-sans-semibold text-xs text-on-success">
-              {curso.categoria}
+              O que estava errado: título, meta e descrição tinham o mesmo
+              `gap` de 8px e as duas últimas a mesma cor (`ink-muted`). Sem
+              diferença de espaço nem de tinta, o olho lia um bloco só de
+              texto — a queixa de "está tudo muito junto" é literalmente
+              isso.
+
+              Agora:
+              · título e meta ficam COLADOS (4px) — são a mesma unidade, o
+                nome e sua ficha técnica;
+              · a descrição se afasta (24px) e vem em `ink`, não `ink-muted`.
+                Ela é o texto principal desta tela, o que a pessoa lê para
+                decidir; deixá-la cinza a rebaixava ao nível da meta.
+
+              A hierarquia aparece sozinha, sem precisar de fio nem caixa. */}
+          <View className="gap-xs">
+            <Text
+              accessibilityRole="header"
+              className="font-serif-bold text-[28px] leading-9 text-ink"
+              style={{ letterSpacing: tracking.title }}
+            >
+              {curso.nome}
             </Text>
-            <Text className="font-serif-bold text-2xl text-ink">{curso.nome}</Text>
-            {curso.descricaoMaterial ? (
-              <Text className="font-sans text-sm leading-6 text-ink-muted">{curso.descricaoMaterial}</Text>
-            ) : null}
 
-            {curso.duracao || curso.publicoAlvo ? (
-              <View className="mt-1 gap-1">
-                {curso.duracao ? (
-                  <View className="flex-row items-center gap-2">
-                    <Ionicons name="time-outline" size={14} color={colors.outline} />
-                    <Text className="font-sans text-xs text-ink-muted">{curso.duracao}</Text>
-                  </View>
-                ) : null}
-                {curso.publicoAlvo ? (
-                  <View className="flex-row items-center gap-2">
-                    <Ionicons name="people-outline" size={14} color={colors.outline} />
-                    <Text className="flex-1 font-sans text-xs text-ink-muted">
-                      {curso.publicoAlvo}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
+            {/* A categoria era um comprimido `bg-success-soft` com
+                `text-on-success`: verde claro com texto BRANCO, 1,30:1 — o
+                mesmo par trocado que já apareceu em três lugares. E verde
+                significa confirmação; "Casais" não confirma nada. */}
+            <Text className="font-sans text-[13px] text-ink-muted">
+              {[
+                curso.categoria,
+                capitulos.length > 0 ? `${capitulos.length} aulas` : null,
+                curso.duracao,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
           </View>
 
-          {/* Ementa — o que a pessoa mais quer saber antes de se matricular:
-              o que exatamente vai ser estudado. */}
-          {capitulos.length > 0 ? (
-            <View className="gap-3">
-              <Text className="font-serif-bold text-lg text-ink">
-                O que você vai estudar
+          {curso.descricaoMaterial ? (
+            /* `leading-6` e não `leading-7`: 28px de entrelinha é medida de
+               LEITURA longa, do devocional. Aqui é um parágrafo de catálogo,
+               que a pessoa varre para decidir. Entrelinha larga demais afasta
+               as linhas e faz um texto de cinco parecer de dez. */
+            <Text className="pt-lg font-sans text-[15px] leading-6 text-ink">
+              {curso.descricaoMaterial}
+            </Text>
+          ) : null}
+
+          {/* Público-alvo é ressalva, não descrição. Fica depois, menor e em
+              cinza — é o que a pessoa checa DEPOIS de se interessar. */}
+          {curso.publicoAlvo ? (
+            <View className="flex-row items-start gap-sm pt-md">
+              <MaterialCommunityIcons
+                name="account-group-outline"
+                size={15}
+                color={colors.inkMuted}
+                style={{ marginTop: 2 }}
+              />
+              <Text className="flex-1 font-sans text-[13px] leading-5 text-ink-muted">
+                {curso.publicoAlvo}
               </Text>
-              <Card contentClassName="gap-0" padded={false}>
-                {agruparCapitulos(capitulos).map((grupo, gi) => (
+            </View>
+          ) : null}
+
+          {/* ═══ EMENTA ══════════════════════════════════════════════ */}
+          {capitulos.length > 0 ? (
+            <View>
+              <TituloGrupo>O que você vai estudar</TituloGrupo>
+
+              <View
+                className="mt-sm self-stretch overflow-hidden rounded-lg bg-surface-bright"
+                style={elevation.subtle}
+              >
+                {agruparCapitulos(aulasVisiveis).map((grupo, gi) => (
                   <View key={grupo.secao ?? `grupo-${gi}`}>
                     {grupo.secao ? (
-                      <View className="border-b border-outline-variant bg-surface-container-low px-4 py-2">
-                        <Text className="font-sans-semibold text-xs uppercase tracking-wide text-secondary">
+                      <View className="bg-surface-dim px-lg py-sm">
+                        <Text className="font-sans-semibold text-[12px] text-ink-muted">
                           {grupo.secao}
                         </Text>
                       </View>
                     ) : null}
+
                     {grupo.itens.map((cap) => (
                       <View
                         key={cap.id}
-                        className={[
-                          'flex-row items-start gap-3 px-4 py-3',
-                          // Só o último item da ementa inteira fica sem linha —
-                          // senão sobraria uma borda solta no rodapé do card.
-                          cap.ordem < capitulos.length
-                            ? 'border-b border-outline-variant'
-                            : '',
-                        ].join(' ')}
+                        className="flex-row items-start gap-md px-lg py-md"
                       >
-                        <Text className="w-6 font-serif-bold text-sm text-gold">
+                        {/* Era `text-gold` — 2,96:1 sobre branco, abaixo até
+                            do piso de texto grande. O dourado desta paleta é
+                            fundo, não tinta sobre claro. */}
+                        <Text className="w-6 font-serif-bold text-[14px] text-secondary">
                           {cap.ordem}
                         </Text>
-                        <Text className="flex-1 font-sans text-sm leading-5 text-ink">
+                        <Text className="flex-1 font-sans text-[14px] leading-6 text-ink">
                           {cap.titulo}
                         </Text>
                       </View>
                     ))}
                   </View>
                 ))}
-              </Card>
+
+                {capitulos.length > aulasVisiveis.length ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setEmentaAberta(true)}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                  >
+                    <View className="min-h-[48px] flex-row items-center justify-center gap-1.5 border-t border-outline-variant">
+                      <Text className="font-sans-semibold text-[14px] text-secondary">
+                        Ver as {capitulos.length} aulas
+                      </Text>
+                      <MaterialCommunityIcons
+                        name="chevron-down"
+                        size={18}
+                        color={colors.secondary}
+                      />
+                    </View>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
           ) : null}
 
-          {/* Turmas */}
-          <View className="gap-3">
-            <Text className="font-serif-bold text-lg text-ink">Turmas abertas</Text>
+          {/* ═══ TURMAS ══════════════════════════════════════════════ */}
+          <View>
+            <TituloGrupo>Turmas abertas</TituloGrupo>
 
-            {/* Busca só aparece quando há turmas o bastante para valer a pena
-                procurar — com duas turmas o campo só ocupa espaço. */}
-            {salas.length > 2 ? (
-              <TextField
-                label="Buscar por líder ou nome da turma"
-                placeholder="Ex: João Silva ou Turma da manhã"
-                value={buscaTurma}
-                onChangeText={setBuscaTurma}
-                autoCapitalize="none"
-              />
+            {/* A busca só aparece quando há turmas o bastante para valer a
+                pena procurar — com duas, o campo só ocupa espaço. */}
+            {!semAcesso && salas.length > 2 ? (
+              <View className="pt-sm">
+                <TextField
+                  label="Buscar turma"
+                  placeholder="Nome da turma ou do líder"
+                  value={buscaTurma}
+                  onChangeText={setBuscaTurma}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
             ) : null}
 
-            {actionError ? (
-              <Text className="font-sans text-xs text-error">{actionError}</Text>
+            {erroAcao ? (
+              <Text className="pt-sm font-sans text-[13px] text-error">{erroAcao}</Text>
             ) : null}
 
-            {salasFiltradas.length === 0 ? (
-              <Card contentClassName="items-center gap-2 py-4">
-                <Ionicons name="school-outline" size={28} color={colors.outline} />
-                <Text className="text-center font-sans text-sm text-ink-muted">
-                  {buscaTurma.trim()
-                    ? 'Nenhuma turma encontrada para essa busca.'
-                    : 'Nenhuma turma aberta no momento.'}
-                </Text>
-              </Card>
-            ) : (
-              salasFiltradas.map((sala) => {
-                const enrolled = enrolledSalaIds.has(sala.id);
-                const processing = enrollingId === sala.id;
-                const vagas = vagasRestantes(sala);
-                const periodo = formatPeriodoSala(sala);
-                const lotada = vagas === 0 && !enrolled;
-
-                return (
-                  <Card key={sala.id} contentClassName="gap-3">
-                    {/* O nome da turma é o que distingue uma da outra. Antes
-                        não era exibido, e várias turmas do mesmo curso ficavam
-                        com cards idênticos — impossível escolher. */}
-                    <View className="flex-row items-start justify-between gap-2">
-                      <Text className="flex-1 font-serif-bold text-base text-ink">
-                        {sala.nomeSala}
-                      </Text>
-                      {lotada ? (
-                        <Text className="rounded-full bg-surface-container-high px-2 py-0.5 font-sans-semibold text-[11px] text-error">
-                          Lotada
-                        </Text>
-                      ) : null}
-                      {/* Fica no topo, junto do nome, porque a ação é sobre a
-                          turma inteira — não sobre a matrícula da pessoa. */}
-                      {isLeader ? (
-                        <Pressable
-                          onPress={() => confirmarExclusaoTurma(sala)}
-                          hitSlop={8}
-                          accessibilityLabel={`Excluir turma ${sala.nomeSala}`}
-                        >
-                          <Ionicons
-                            name="trash-outline"
-                            size={17}
-                            color={colors.error}
-                          />
-                        </Pressable>
-                      ) : null}
-                    </View>
-
-                    {periodo ? (
-                      <View className="flex-row items-center gap-1">
-                        <Ionicons name="calendar-outline" size={14} color={colors.outline} />
-                        <Text className="font-sans text-xs text-ink-muted">{periodo}</Text>
-                      </View>
-                    ) : null}
-
-                    {sala.lider ? (
-                      <View className="flex-row items-center gap-3">
-                        <Avatar
-                          nome={sala.lider.nomeCompleto}
-                          fotoUrl={sala.lider.fotoUrl}
-                          size={36}
-                        />
-                        <View>
-                          <Text className="font-sans-semibold text-sm text-ink">
-                            {sala.lider.nomeCompleto}
-                          </Text>
-                          <Text className="font-sans text-xs text-ink-muted">Líder da turma</Text>
-                        </View>
-                      </View>
-                    ) : null}
-
-                    <View className="flex-row items-center gap-1">
-                      <Ionicons name="people-outline" size={14} color={colors.outline} />
-                      <Text className="font-sans text-xs text-ink-muted">
-                        {sala.capacidade === null
-                          ? `${sala.totalMatriculas} matriculados · sem limite de vagas`
-                          : `${sala.totalMatriculas}/${sala.capacidade} matriculados`}
-                      </Text>
-                      {vagas !== null && vagas > 0 && vagas <= 3 ? (
-                        <Text className="font-sans-semibold text-xs text-error">
-                          · {vagas === 1 ? 'Última vaga' : `Últimas ${vagas} vagas`}
-                        </Text>
-                      ) : null}
-                    </View>
-
-                    {enrolled ? (
-                      <>
-                        <Button
-                          label="Ver colegas da turma"
-                          variant="secondary"
-                          icon={<Ionicons name="people-outline" size={14} color={colors.secondary} />}
-                          onPress={() =>
-                            navigation.navigate('Sala', { salaId: sala.id, cursoNome: curso!.nome })
-                          }
-                        />
-                        <Button
-                          label="Cancelar matrícula"
-                          variant="secondary"
-                          loading={processing}
-                          onPress={() => handleCancel(sala.id)}
-                        />
-                      </>
-                    ) : (
-                      <Button
-                        label={lotada ? 'Turma lotada' : 'Matricular-se nesta turma'}
-                        loading={processing}
-                        disabled={lotada}
-                        icon={<Ionicons name="checkmark" size={18} color={colors.onGold} />}
-                        onPress={() => handleEnroll(sala.id)}
-                      />
-                    )}
-                    {isLeader ? (
-                      <>
-                        <Button
-                          label="Ver participantes"
-                          variant="secondary"
-                          icon={<Ionicons name="people-outline" size={14} color={colors.secondary} />}
-                          onPress={() =>
-                            navigation.navigate('SalaParticipantes', {
-                              salaId: sala.id,
-                              cursoTitulo: curso!.nome,
-                            })
-                          }
-                        />
-                        <Button
-                          label="Encerrar turma"
-                          variant="secondary"
-                          loading={encerrandoId === sala.id}
-                          icon={
-                            <Ionicons
-                              name="flag-outline"
-                              size={14}
-                              color={colors.secondary}
-                            />
-                          }
-                          onPress={() => confirmarEncerramento(sala)}
-                        />
-                      </>
-                    ) : null}
-                  </Card>
-                );
-              })
-            )}
+            <View className="gap-md pt-md">
+              {semAcesso ? (
+                <Aviso
+                  icone="lock-outline"
+                  titulo={semAcesso}
+                  texto="Você pode ver o conteúdo, mas não participar das turmas."
+                />
+              ) : salasFiltradas.length === 0 ? (
+                <Aviso
+                  icone="school-outline"
+                  titulo={
+                    buscaTurma.trim()
+                      ? 'Nenhuma turma com esse nome'
+                      : 'Nenhuma turma aberta no momento'
+                  }
+                  texto={
+                    buscaTurma.trim()
+                      ? 'Tente o nome do líder, ou limpe a busca.'
+                      : 'Quando a liderança abrir uma turma deste curso, ela aparece aqui.'
+                  }
+                />
+              ) : (
+                salasFiltradas.map((sala) => (
+                  <CartaoTurma
+                    key={sala.id}
+                    sala={sala}
+                    matriculado={matriculadoEm.has(sala.id)}
+                    processando={emVoo === sala.id}
+                    // O menu só existe quando há o que colocar nele.
+                    temMenu={isLeader || matriculadoEm.has(sala.id)}
+                    onMenu={() => abrirMenuTurma(sala)}
+                    onEntrar={() =>
+                      navigation.navigate('Sala', { salaId: sala.id, cursoNome: curso.nome })
+                    }
+                    onMatricular={() => matricularEm(sala.id)}
+                  />
+                ))
+              )}
+            </View>
           </View>
 
-          {/* Turma encerrada não aparece aqui: a consulta pede só as ativas.
-              O registro continua no banco e chega à pessoa pelo histórico do
-              Perfil, que é por usuário e não cresce com o tempo da igreja. */}
+          {/* ═══ LIDERANÇA ═══════════════════════════════════════════
+              Separado do resto: são ações sobre o CURSO, não sobre a
+              participação de ninguém. Antes ficavam soltas no fim, com o
+              mesmo peso dos botões de matrícula. */}
+          {isLeader || podeGerenciarCurso ? (
+            <View className="gap-sm pt-2xl">
+              <TituloGrupo>Gestão</TituloGrupo>
 
-          {isLeader ? (
-            <Button
-              label="Criar nova turma"
-              variant="secondary"
-              icon={<Ionicons name="add-circle-outline" size={16} color={colors.secondary} />}
-              onPress={() =>
-                navigation.navigate('CreateSala', {
-                  cursoId: route.params.id,
-                  cursoTitulo: curso!.nome,
-                })
-              }
-            />
-          ) : null}
+              {isLeader ? (
+                <Button
+                  label="Criar nova turma"
+                  variant="outline"
+                  icon={
+                    <MaterialCommunityIcons name="plus" size={17} color={colors.ink} />
+                  }
+                  onPress={() =>
+                    navigation.navigate('CreateSala', {
+                      cursoId,
+                      cursoTitulo: curso.nome,
+                    })
+                  }
+                />
+              ) : null}
 
-{/* Aqui havia "Certificado incluso" e "Material didático digital" fixos
-    no código, sem nada por trás. A ementa acima diz de verdade o que o
-    curso entrega. */}
-          {canManage ? (
-            <Button
-              label="Excluir curso"
-              variant="secondary"
-              icon={<Ionicons name="trash-outline" size={16} color={colors.error} />}
-              onPress={() =>
-                Alert.alert(
-                  'Excluir curso',
-                  'Tem certeza que deseja excluir este curso? Essa ação não pode ser desfeita.',
-                  [
-                    { text: 'Cancelar', style: 'cancel' },
-                    {
-                      text: 'Excluir',
-                      style: 'destructive',
-                      onPress: () =>
-                        excluirCurso.mutate(Number(route.params.id), {
-                          onSuccess: () => navigation.goBack(),
-                          onError: (e) =>
-                            Alert.alert(
-                              'Erro',
-                              extractErrorMessage(e, 'Não foi possível excluir.'),
-                            ),
-                        }),
-                    },
-                  ],
-                )
-              }
-            />
+              {podeGerenciarCurso ? (
+                <Button
+                  label="Excluir curso"
+                  variant="destructive"
+                  onPress={() =>
+                    Alert.alert(
+                      'Excluir curso',
+                      'Excluir este curso e todas as suas turmas? Essa ação não pode ser desfeita.',
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        {
+                          text: 'Excluir',
+                          style: 'destructive',
+                          onPress: () =>
+                            excluirCurso.mutate(Number(cursoId), {
+                              onSuccess: () => navigation.goBack(),
+                              onError: (e) =>
+                                Alert.alert(
+                                  'Erro',
+                                  extractErrorMessage(e, 'Não foi possível excluir.'),
+                                ),
+                            }),
+                        },
+                      ],
+                    )
+                  }
+                />
+              ) : null}
+            </View>
           ) : null}
         </ScrollView>
       )}
     </SafeAreaView>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════ */
+
+function Aviso({
+  icone,
+  titulo,
+  texto,
+}: {
+  icone: keyof typeof MaterialCommunityIcons.glyphMap;
+  titulo: string;
+  texto: string;
+}) {
+  const colors = useThemeColors();
+  return (
+    <View className="items-center gap-sm px-lg py-2xl">
+      <MaterialCommunityIcons name={icone} size={26} color={colors.inkMuted} />
+      <Text className="text-center font-sans-semibold text-[15px] text-ink">{titulo}</Text>
+      <Text className="max-w-[300px] text-center font-sans text-[13px] leading-5 text-ink-muted">
+        {texto}
+      </Text>
+    </View>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   TURMA
+   ══════════════════════════════════════════════════════════════════════ */
+
+function CartaoTurma({
+  sala,
+  matriculado,
+  processando,
+  temMenu,
+  onMenu,
+  onEntrar,
+  onMatricular,
+}: {
+  sala: Sala;
+  matriculado: boolean;
+  processando: boolean;
+  temMenu: boolean;
+  onMenu: () => void;
+  onEntrar: () => void;
+  onMatricular: () => void;
+}) {
+  const colors = useThemeColors();
+  const vagas = vagasRestantes(sala);
+  const periodo = formatPeriodoSala(sala);
+  const lotada = vagas === 0 && !matriculado;
+
+  return (
+    <View
+      className="gap-md self-stretch rounded-lg bg-surface-bright p-lg"
+      style={elevation.subtle}
+    >
+      <View className="flex-row items-start gap-sm">
+        <Text
+          className="flex-1 font-serif-bold text-[17px] leading-6 text-ink"
+          style={{ letterSpacing: tracking.heading }}
+        >
+          {sala.nomeSala}
+        </Text>
+
+        {sala.publico !== 'Todos' ? (
+          <Text className="rounded-md bg-surface-dim px-2 py-0.5 font-sans-semibold text-[11px] text-secondary">
+            Só {sala.publico.toLowerCase()}
+          </Text>
+        ) : null}
+
+        {lotada ? (
+          <Text className="rounded-md bg-surface-dim px-2 py-0.5 font-sans-semibold text-[11px] text-error">
+            Lotada
+          </Text>
+        ) : null}
+      </View>
+
+      {sala.lider ? (
+        <View className="flex-row items-center gap-sm">
+          <Avatar nome={sala.lider.nomeCompleto} fotoUrl={sala.lider.fotoUrl} size={28} />
+          <Text className="flex-1 font-sans text-[13px] text-ink-muted" numberOfLines={1}>
+            <Text className="font-sans-medium text-ink">{sala.lider.nomeCompleto}</Text>
+            {' · lidera'}
+          </Text>
+        </View>
+      ) : null}
+
+      {/* Período e vagas numa linha só. Eram duas linhas com ícone cada, e
+          juntas ocupavam mais espaço que o nome da turma. */}
+      <View className="flex-row items-center gap-1">
+        <MaterialCommunityIcons name="calendar-blank-outline" size={13} color={colors.inkMuted} />
+        <Text className="flex-1 font-sans text-[13px] text-ink-muted" numberOfLines={1}>
+          {[
+            periodo,
+            sala.capacidade === null
+              ? `${sala.totalMatriculas} matriculados`
+              : `${sala.totalMatriculas}/${sala.capacidade} vagas`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+        {vagas !== null && vagas > 0 && vagas <= 3 ? (
+          <Text className="font-sans-semibold text-[13px] text-error">
+            {vagas === 1 ? 'Última vaga' : `Últimas ${vagas}`}
+          </Text>
+        ) : null}
+      </View>
+
+      {/* ═══ UMA AÇÃO, E O RESTO NO MENU ═══
+          O botão diz o que fazer agora; "···" guarda o que é raro (cancelar
+          matrícula) ou de liderança (participantes, encerrar, excluir). */}
+      <View className="flex-row items-center gap-sm">
+        <View className="flex-1">
+          <Button
+            label={
+              matriculado ? 'Entrar na turma' : lotada ? 'Turma lotada' : 'Matricular-se'
+            }
+            variant={matriculado ? 'secondary' : 'primary'}
+            loading={processando}
+            disabled={lotada && !matriculado}
+            icon={
+              <MaterialCommunityIcons
+                name={matriculado ? 'arrow-right' : 'check'}
+                size={17}
+                // Era `colors.onGold` num botão TERRACOTA — marrom escuro
+                // sobre terracota dá 2,5:1. O par do primário é `onPrimary`.
+                color={matriculado ? colors.ink : colors.onPrimary}
+              />
+            }
+            onPress={matriculado ? onEntrar : onMatricular}
+          />
+        </View>
+
+        {temMenu ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Mais opções da turma ${sala.nomeSala}`}
+            onPress={onMenu}
+            // 20 de glifo + 12 de folga = 44 de alvo.
+            hitSlop={12}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+          >
+            <MaterialCommunityIcons
+              name="dots-horizontal"
+              size={20}
+              color={colors.inkMuted}
+            />
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
   );
 }

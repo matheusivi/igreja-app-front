@@ -17,7 +17,7 @@ type ScriptureQuoteProps = {
 export function ScriptureQuote({ text, reference }: ScriptureQuoteProps) {
   return (
     <View className="gap-2 rounded-lg bg-gold-fixed p-4">
-      <Text className="font-serif text-lg italic leading-7 text-on-gold">
+      <Text className="font-serif text-lg italic leading-7 text-on-gold-fixed">
         {'“'}
         {text}
         {'”'}

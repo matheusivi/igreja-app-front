@@ -20,7 +20,7 @@ export function AuthLayout({ title, subtitle, eyebrow, children, footer }: AuthL
       >
         <ScrollView
           className="flex-1 px-gutter"
-          contentContainerClassName="items-center gap-md py-xl"
+          contentContainerClassName="items-center gap-xl py-3xl"
           keyboardShouldPersistTaps="handled"
         >
           <View className="items-center gap-3">

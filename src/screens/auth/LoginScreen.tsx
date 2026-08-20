@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Button, TextField } from '../../components';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { NOME_IGREJA } from '../../constants/igreja';
 import { useAuth } from '../../navigation/AuthContext';
 import type { AuthStackParamList } from '../../navigation/types';
 import { extractErrorMessage } from '../../services/api';
@@ -49,7 +50,7 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <AuthLayout
-      eyebrow="IBVI Nova Andradina"
+      eyebrow={NOME_IGREJA}
       title="Bem-vindo de volta"
       subtitle="Acesse sua conta para continuar sua caminhada de fé com a comunidade."
       footer={
@@ -63,8 +64,8 @@ export function LoginScreen({ navigation }: Props) {
     >
       {sessionExpired ? (
         <View className="flex-row items-start gap-2 rounded bg-gold-fixed p-3">
-          <Ionicons name="time-outline" size={16} color={colors.onGold} />
-          <Text className="flex-1 font-sans text-sm leading-5 text-on-gold">
+          <Ionicons name="time-outline" size={16} color={colors.onGoldFixed} />
+          <Text className="flex-1 font-sans text-sm leading-5 text-on-gold-fixed">
             Sua sessão expirou. Entre novamente para continuar.
           </Text>
         </View>

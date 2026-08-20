@@ -29,8 +29,17 @@ export type AppStackParamList = {
   GroupDetail: { id: string };
   CreateGroup: undefined;
   InviteMember: { grupoId: number; grupoNome: string };
-  CreateConteudo: { tipo?: 'Devocional' | 'Estudo' | 'Aviso'; id?: string } | undefined;
+  CreateConteudo: { tipo?: 'Devocional' | 'Aviso'; id?: string } | undefined;
   CreateEvento: { id?: string } | undefined;
   CreateSala: { cursoId: string; cursoTitulo: string };
   SalaParticipantes: { salaId: number; cursoTitulo: string };
+  Contribuir: undefined;
+  Avisos: undefined;
+  /** Diretório de membros — só Líder, Pastor e Administrador chegam aqui. */
+  Membros: undefined;
+  /** Trabalhos da comunidade — aberto a todo membro. */
+  Profissionais: undefined;
+  PlanoLeitura: undefined;
+  /** Capa e frase do topo da Home — só Pastor e Administrador. */
+  AparenciaHome: undefined;
 };

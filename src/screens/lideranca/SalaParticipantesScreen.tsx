@@ -1,14 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card } from '../../components';
 import type { AppColors } from '../../constants/theme';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import type { AppStackParamList } from '../../navigation/types';
 import { extractErrorMessage } from '../../services/api';
-import { coursesService, type ParticipanteSala } from '../../services/courses.service';
+import type { ParticipanteSala } from '../../services/courses.service';
+import {
+  useAtualizarStatusParticipante,
+  useParticipantesSala,
+} from '../../hooks/queries/useCursos';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SalaParticipantes'>;
 
@@ -39,40 +42,34 @@ export function SalaParticipantesScreen({ route, navigation }: Props) {
   const colors = useThemeColors();
   const { salaId, cursoTitulo } = route.params;
 
-  const [participantes, setParticipantes] = useState<ParticipanteSala[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const {
+    data: participantes = [],
+    isPending: isLoading,
+    error: queryError,
+    refetch,
+  } = useParticipantesSala(salaId);
 
-  useEffect(() => {
-    load();
-  }, [salaId]);
+  const atualizarStatus = useAtualizarStatusParticipante();
 
-  async function load() {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await coursesService.getParticipantes(salaId);
-      setParticipantes(data);
-    } catch (e) {
-      setError(extractErrorMessage(e));
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const error = queryError ? extractErrorMessage(queryError) : null;
+  const updatingId = atualizarStatus.isPending
+    ? atualizarStatus.variables?.usuarioId ?? null
+    : null;
 
-  async function handleUpdateStatus(usuarioId: number, status: 'concluido' | 'desistente') {
-    setUpdatingId(usuarioId);
-    try {
-      await coursesService.updateParticipanteStatus(salaId, usuarioId, status);
-      setParticipantes((current) =>
-        current.map((p) => (p.usuarioId === usuarioId ? { ...p, status } : p)),
-      );
-    } catch (e) {
-      // fail silently — refresh on next load
-    } finally {
-      setUpdatingId(null);
-    }
+  function handleUpdateStatus(usuarioId: number, status: 'concluido' | 'desistente') {
+    atualizarStatus.mutate(
+      { salaId, usuarioId, status },
+      {
+        // Antes o erro era engolido em silêncio ("fail silently") e a lista
+        // mudava só na memória da tela: o Perfil do aluno continuava dizendo
+        // "Em andamento" mesmo depois de marcado como concluído.
+        onError: (e) =>
+          Alert.alert(
+            'Erro',
+            extractErrorMessage(e, 'Não foi possível atualizar o status.'),
+          ),
+      },
+    );
   }
 
   const ativos = participantes.filter((p) => p.status === 'ativo');
@@ -88,7 +85,7 @@ export function SalaParticipantesScreen({ route, navigation }: Props) {
         <Text className="font-serif-bold text-base text-primary" numberOfLines={1}>
           Participantes
         </Text>
-        <Pressable onPress={load} hitSlop={8}>
+        <Pressable onPress={() => refetch()} hitSlop={8}>
           <Ionicons name="refresh-outline" size={20} color={colors.primary} />
         </Pressable>
       </View>
@@ -103,7 +100,7 @@ export function SalaParticipantesScreen({ route, navigation }: Props) {
           <Button label="Tentar novamente" variant="secondary" onPress={load} />
         </View>
       ) : (
-        <ScrollView className="flex-1 px-gutter" contentContainerClassName="gap-md py-lg">
+        <ScrollView className="flex-1 px-gutter" contentContainerClassName="gap-xl py-3xl">
           <Card contentClassName="gap-1">
             <Text className="font-sans-semibold text-xs uppercase tracking-wide text-ink-muted">
               Turma do curso

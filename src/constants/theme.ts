@@ -10,45 +10,67 @@
  */
 
 export const lightColors = {
-  background: '#FBF5E9',
-  surface: '#FBF5E9',
-  surfaceBright: '#FEFBF3',
-  surfaceDim: '#E8D9B8',
+  background: '#F7F3EE',
+  surface: '#F7F3EE',
+  surfaceBright: '#FFFFFF',
+  surfaceDim: '#F2EBE1',
   surfaceContainerLowest: '#FFFFFF',
-  surfaceContainerLow: '#F7EFDD',
-  surfaceContainer: '#F3E6C9',
-  surfaceContainerHigh: '#EDDDB8',
-  surfaceContainerHighest: '#E6D3A8',
+  surfaceContainerLow: '#F7F2EA',
+  surfaceContainer: '#F2EBE1',
+  surfaceContainerHigh: '#EBE0D2',
+  surfaceContainerHighest: '#E1D3C0',
 
-  ink: '#141B2B',
-  inkMuted: '#534434',
-  inverseSurface: '#293040',
-  inverseInk: '#EDF0FF',
+  ink: '#3D2317',
+  inkMuted: '#7A5C4A',
+  inverseSurface: '#3D2317',
+  inverseInk: '#F2EBE1',
+  /**
+   * Acento quente PARA USAR SOBRE `inverseSurface`.
+   *
+   * ═══ POR QUE NÃO DÁ PARA USAR `gold` LÁ ═══
+   * `inverseSurface` inverte entre os temas: é marrom escuro no claro e creme
+   * no escuro. Um acento fixo só funciona num dos dois. `gold` dá 4,90:1
+   * sobre o cartão escuro do tema claro e **2,09:1** sobre o cartão claro do
+   * tema escuro — some.
+   *
+   * Este token acompanha a inversão: dourado no claro, terracota escura no
+   * escuro. 4,90:1 e 5,83:1.
+   *
+   * Não tem espelho em CSS/Tailwind de propósito — é lido só por JS, nos dois
+   * cartões escuros do app (convite de família e curso em andamento). Criar a
+   * variável CSS seria fabricar uma classe que ninguém usa.
+   */
+  onInverseAccent: '#B98E61',
 
-  outline: '#867461',
-  outlineVariant: '#D8C3AD',
+  outline: '#9C8A70',
+  outlineVariant: '#E8DED1',
 
-  primary: '#855300',
+  primary: '#A85A2C',
+  primaryEdge: '#7E4020',
   onPrimary: '#FFFFFF',
-  gold: '#F59E0B',
-  onGold: '#613B00',
-  goldSoft: '#FFB95F',
-  goldFixed: '#FFDDB8',
+  gold: '#B98E61',
+  onGold: '#3D2317',
+  goldSoft: '#CDB0A1',
+  // `goldFixed` é fundo tingido (versículo, selo "Destaque", linha do
+  // aniversariante do dia). Ele TROCA entre os temas, então precisa do seu
+  // próprio par de texto: `onGold` servia só no claro — no escuro dava 2,34:1.
+  goldFixed: '#F7E9DC',
+  onGoldFixed: '#3D2317',
 
-  secondary: '#1E40AF',
+  secondary: '#8A4522',
   onSecondary: '#FFFFFF',
-  secondarySoft: '#708CFD',
-  onSecondarySoft: '#00217A',
+  secondarySoft: '#F7E9DC',
+  onSecondarySoft: '#3D2317',
 
-  success: '#006C49',
+  success: '#4A6B3A',
   onSuccess: '#FFFFFF',
-  successSoft: '#30C88F',
+  successSoft: '#DCE5CE',
 
-  error: '#BA1A1A',
+  error: '#8C3A1C',
   onError: '#FFFFFF',
 
-  header: '#111827',
-  onHeader: '#FFFFFF',
+  header: '#F7F3EE',
+  onHeader: '#3D2317',
 } as const;
 
 // Mesmas chaves da paleta clara, mas com valores como `string` — sem isso o
@@ -57,45 +79,50 @@ export const lightColors = {
 export type AppColors = { [K in keyof typeof lightColors]: string };
 
 export const darkColors: AppColors = {
-  background: '#16130E',
-  surface: '#16130E',
-  surfaceBright: '#221D16',
-  surfaceDim: '#0E0C09',
-  surfaceContainerLowest: '#100E0A',
-  surfaceContainerLow: '#1E1A14',
-  surfaceContainer: '#232019',
-  surfaceContainerHigh: '#2E291F',
-  surfaceContainerHighest: '#393226',
+  background: '#241710',
+  surface: '#241710',
+  surfaceBright: '#33231A',
+  surfaceDim: '#1B100B',
+  surfaceContainerLowest: '#1B100B',
+  surfaceContainerLow: '#2C1D14',
+  surfaceContainer: '#33231A',
+  surfaceContainerHigh: '#3E2C21',
+  surfaceContainerHighest: '#4A3527',
 
-  ink: '#F2E9DA',
-  inkMuted: '#CBBBA3',
-  inverseSurface: '#F2E9DA',
-  inverseInk: '#16130E',
+  ink: '#F2E7DC',
+  inkMuted: '#C9B4A4',
+  inverseSurface: '#F2E7DC',
+  inverseInk: '#241710',
+  // Ver o comentário no tema claro: aqui o cartão invertido é CLARO, então o
+  // acento tem que escurecer. 5,83:1 sobre #F2E7DC.
+  onInverseAccent: '#8A4522',
 
-  outline: '#9C8B76',
-  outlineVariant: '#4C4336',
+  outline: '#94795F',
+  outlineVariant: '#4A3527',
 
-  primary: '#FFB95F',
-  onPrimary: '#452B00',
-  gold: '#F59E0B',
-  onGold: '#452B00',
-  goldSoft: '#FFDDB8',
-  goldFixed: '#E8C48F',
+  primary: '#E0A470',
+  primaryEdge: '#B07B4C',
+  onPrimary: '#241710',
+  gold: '#C79A6C',
+  onGold: '#241710',
+  goldSoft: '#C79A6C',
+  goldFixed: '#4A3021',
+  onGoldFixed: '#F2E7DC',
 
-  secondary: '#B8C4FF',
-  onSecondary: '#06207A',
-  secondarySoft: '#4A63C8',
-  onSecondarySoft: '#DDE1FF',
+  secondary: '#E0A470',
+  onSecondary: '#241710',
+  secondarySoft: '#4A3021',
+  onSecondarySoft: '#F2E7DC',
 
-  success: '#4EDEA3',
-  onSuccess: '#FFFFFF',
-  successSoft: '#2E9E74',
+  success: '#9CC17E',
+  onSuccess: '#241710',
+  successSoft: '#33421F',
 
-  error: '#FFB4AB',
-  onError: '#690005',
+  error: '#F0A48A',
+  onError: '#3A1409',
 
-  header: '#100E0A',
-  onHeader: '#F2E9DA',
+  header: '#241710',
+  onHeader: '#F2E7DC',
 };
 
 /** Paleta clara. Só use direto fora de componentes React. */
@@ -109,33 +136,118 @@ export const fonts = {
   sansSemiBold: 'PlusJakartaSans_600SemiBold',
 } as const;
 
+/**
+ * Escala ANINHADA de raio (DESIGN.md §4).
+ *
+ * A regra é relativa, não absoluta: o que está dentro tem canto mais fechado
+ * que o que o contém. Uma imagem (`sm`) dentro de um card (`lg`) parece
+ * encaixada; com o mesmo raio nos dois, parece colada por cima.
+ *
+ * `full` é só para avatar de PESSOA. Foto de evento, de família ou de curso em
+ * círculo é o que faz todo app parecer o mesmo app.
+ */
 export const radius = {
-  sm: 2,
-  base: 4,
-  button: 4,
-  card: 8,
-  xl: 12,
-  full: 9999,
+  sm: 6, // dentro de um card: imagem, campo, mini-selo
+  button: 5, // aresta viva — ver Button.tsx
+  md: 10, // chip, selo
+  lg: 16, // card
+  xl: 24, // superfície imersiva, hero, folha
+  full: 9999, // avatar de pessoa, e só
+
+  // Nomes antigos, mantidos para as telas que ainda não migraram.
+  base: 6,
+  card: 16,
 } as const;
 
+/**
+ * Escala de espaçamento (DESIGN.md §3).
+ *
+ * A anterior pulava de 12 para 24 e de 24 para 48 — sem degraus no meio, toda
+ * tela acabava usando 24 para tudo, e espaçamento uniforme é a assinatura
+ * visual de interface montada por template. O ritmo é o ponto:
+ *
+ *   4–8    partes da mesma coisa
+ *   12–16  irmãos de uma lista
+ *   24     blocos distintos
+ *   32–48  entre seções
+ */
 export const spacing = {
   xs: 4,
-  base: 8,
-  sm: 12,
-  md: 24,
-  lg: 48,
-  xl: 80,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  '2xl': 32,
+  '3xl': 48,
   gutter: 20,
+
+  // Nome antigo: `base` valia 8.
+  base: 8,
 } as const;
 
-// Sombra única do sistema — "Ambient Glow" (DESIGN.md, seção Elevation & Depth).
-// Usar só em cards de nível 1; nunca empilhar mais de uma sombra na mesma tela.
-export const ambientGlow = {
-  shadowColor: '#1E40AF',
-  shadowOpacity: 0.04,
-  shadowRadius: 20,
-  shadowOffset: { width: 0, height: 10 },
-  elevation: 3,
+/**
+ * Elevação (DESIGN.md §5). Três níveis, e o padrão é o ZERO.
+ *
+ * A sombra é tingida de marrom, não preta e não azul. A anterior era
+ * `#1E40AF` — azul, numa paleta inteiramente quente. Sombra preta ou fria
+ * sobre superfície quente cria um halo acinzentado que suja a cor.
+ *
+ * Um card se separa da página pela LUMINOSIDADE da superfície
+ * (`surface-bright` sobre `background`). Sombra é para o único card em
+ * destaque da tela — não para todos.
+ */
+export const elevation = {
+  /**
+   * Nível 0,5. Quase nada — 3% de opacidade, 4px de raio, deslocamento 1px.
+   *
+   * Não é para "dar profundidade": é para o card branco não ficar boiando
+   * sem peso sobre o papel. A separação entre `#FFFFFF` e `#F7F3EE` é de
+   * 1,1:1 — de propósito, é micro-contraste. Uma sombra desta escala é o que
+   * ancora a borda inferior sem virar moldura.
+   */
+  subtle: {
+    shadowColor: '#3D2317',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  raised: {
+    shadowColor: '#3D2317',
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
+  },
+  floating: {
+    shadowColor: '#3D2317',
+    shadowOpacity: 0.14,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
 } as const;
+
+/**
+ * Tipografia com ajuste ÓPTICO, não só tamanho e peso.
+ *
+ * Serifada grande precisa de tracking negativo — nos tamanhos de display, o
+ * espaçamento desenhado para 16px vira buraco entre as letras. E versalete
+ * pequeno precisa do contrário: sem tracking positivo, `text-[11px]` em caixa
+ * alta vira um borrão.
+ *
+ * É esse par de correções que separa "título grande" de "título desenhado".
+ * O piso de -0,04em existe porque abaixo disso as serifas se tocam.
+ */
+export const tracking = {
+  display: -1.1, // 32-34px serifado
+  title: -0.7, // 26px serifado
+  heading: -0.3, // 18-22px serifado
+  body: 0,
+  overline: 1.4, // 11px caixa alta
+} as const;
+
+/** @deprecated Use `elevation.raised`. Mantido só para não quebrar imports. */
+export const ambientGlow = elevation.raised;
 
 export type AppFontKey = keyof typeof fonts;

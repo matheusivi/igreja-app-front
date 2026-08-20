@@ -4,16 +4,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Chip, TextField } from '../../components';
+import { Button, Chip, SeletorProfissao, TextField } from '../../components';
+import { tracking } from '../../constants/theme';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useSeletorImagem } from '../../hooks/useSeletorImagem';
-import { aniversariantesKeys } from '../../hooks/queries/useAniversariantes';
 import { useAuth } from '../../navigation/AuthContext';
 import type { AppStackParamList } from '../../navigation/types';
 import { extractErrorMessage } from '../../services/api';
+import { urlImagem } from '../../services/imagem';
 import type { UpdateMePayload } from '../../services/auth.service';
 import { getIniciais } from '../../services/prayer.service';
-import { isValidDate, maskDate } from '../../utils/masks';
+import { isValidDate, maskDate, maskPhone, somenteDigitos } from '../../utils/masks';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'EditProfile'>;
 
@@ -45,8 +46,14 @@ export function EditProfileScreen({ navigation }: Props) {
     isoToDisplayDate(user?.dataNascimento ?? null),
   );
   const [estadoCivil, setEstadoCivil] = useState(user?.estadoCivil ?? '');
-  const [profissao, setProfissao] = useState(user?.profissao ?? '');
+  const [profissao, setProfissao] = useState<string | null>(user?.profissao ?? null);
   const [exibirAniversario, setExibirAniversario] = useState(user?.exibirAniversario ?? true);
+  // Mascarado na tela, só dígitos no servidor — ver `maskPhone`.
+  const [telefone, setTelefone] = useState(maskPhone(user?.telefone ?? ''));
+  const [especializacao, setEspecializacao] = useState(user?.especializacao ?? '');
+  const [divulgarTrabalho, setDivulgarTrabalho] = useState(
+    user?.divulgarTrabalho ?? false,
+  );
   const [fotoUrl, setFotoUrl] = useState<string | null>(user?.fotoUrl ?? null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,21 +99,41 @@ export function EditProfileScreen({ navigation }: Props) {
         // que preencheu antes. Antes o campo em branco simplesmente não ia,
         // e o valor antigo ficava lá para sempre.
         estadoCivil: estadoCivil.trim(),
-        profissao: profissao.trim(),
+        profissao,
         exibirAniversario,
+        // `null` quando em branco: é o que APAGA o telefone. String vazia
+        // passaria pela validação de dígitos e gravaria "" — um telefone que
+        // existe e não serve para nada.
+        telefone: somenteDigitos(telefone) || null,
+        especializacao: especializacao.trim(),
+        divulgarTrabalho,
         // Só vai se mudou. Mandar sempre faria o backend achar que houve troca
         // e tentar apagar a imagem atual no Cloudinary a cada salvamento.
         ...(fotoUrl !== (user?.fotoUrl ?? null) ? { fotoUrl } : {}),
       };
       await updateUser(payload);
 
-      // A lista de aniversariantes da Home tem cache de 10 minutos. Sem
-      // invalidar aqui, mudar a data de nascimento (ou desligar a exibição)
-      // não refletia na Home — parecia que não tinha salvado.
-      await queryClient.invalidateQueries({
-        queryKey: aniversariantesKeys.all,
-        refetchType: 'all',
-      });
+      /**
+       * Invalidação ampla, de propósito.
+       *
+       * O nome e a foto da pessoa não vivem só no `user` do AuthContext: eles
+       * vêm EMBUTIDOS na resposta de várias outras listas — `autor` no pedido
+       * de oração, `criador` no grupo familiar, `lider` na turma,
+       * `participantes` na sala, `aniversariantes` na Home. Cada uma dessas
+       * respostas está guardada no cache com a foto que existia na hora em que
+       * foi buscada.
+       *
+       * Antes só `aniversariantes` era invalidado. Por isso trocar a foto de
+       * perfil mudava o avatar no Perfil e na Home, mas o mural de oração
+       * continuava mostrando a foto antiga: aquele cache nunca era avisado.
+       *
+       * Sem `refetchType`, o padrão é `'active'` — só as telas montadas
+       * recarregam agora; as demais ficam marcadas como velhas e buscam de
+       * novo quando a pessoa entrar nelas. Salvar o perfil é uma ação rara, e
+       * este é o único ponto do app em que um dado se espalha por tantas
+       * listas ao mesmo tempo.
+       */
+      await queryClient.invalidateQueries();
 
       Alert.alert('Perfil atualizado', 'Suas informações foram salvas.', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -130,7 +157,7 @@ export function EditProfileScreen({ navigation }: Props) {
 
       <ScrollView
         className="flex-1 px-gutter"
-        contentContainerClassName="gap-4 py-lg"
+        contentContainerClassName="gap-4 py-3xl"
         keyboardShouldPersistTaps="handled"
       >
         {/* Foto de perfil */}
@@ -147,7 +174,7 @@ export function EditProfileScreen({ navigation }: Props) {
                 <ActivityIndicator color={colors.gold} />
               ) : fotoUrl ? (
                 <Image
-                  source={{ uri: fotoUrl }}
+                  source={{ uri: urlImagem(fotoUrl, { largura: 96, altura: 96 }) }}
                   style={{ width: '100%', height: '100%' }}
                   resizeMode="cover"
                 />
@@ -207,12 +234,24 @@ export function EditProfileScreen({ navigation }: Props) {
           onChangeText={setEstadoCivil}
         />
 
-        <TextField
-          label="Profissão"
-          placeholder="Ex: Professor(a)"
-          value={profissao}
-          onChangeText={setProfissao}
-        />
+        {/* Lista fechada, não texto livre: "Pedreiro", "pedreiro" e
+            "Pedreiro autônomo" eram três profissões diferentes para o
+            diretório, e quem procurava um pedreiro achava uma delas. */}
+        <SeletorProfissao valor={profissao} onChange={setProfissao} />
+
+        {/* ═══ DIZER QUE ESCOLHER A PROFISSÃO NÃO PUBLICA NADA ═══
+            No primeiro teste com gente de verdade, a pessoa escolheu a
+            profissão e foi embora achando que já apareceria em "Trabalhos da
+            comunidade". Não aparece: entrar lá é opt-in, e o interruptor fica
+            uns dois toques de rolagem abaixo daqui.
+
+            O silêncio aqui produzia o pior resultado possível — a pessoa
+            achando que se ofereceu, e ninguém a encontrando. */}
+        <Text className="font-sans text-[13px] leading-5 text-ink-muted">
+          Escolher a profissão não publica nada. Para aparecer em "Trabalhos da
+          comunidade" e ser encontrado por quem precisa, ative a opção mais
+          abaixo nesta tela.
+        </Text>
 
         <Pressable
           className="flex-row items-center gap-3 rounded-lg border border-outline-variant bg-surface-container-low p-3"
@@ -234,6 +273,74 @@ export function EditProfileScreen({ navigation }: Props) {
             color={exibirAniversario ? colors.gold : colors.outline}
           />
         </Pressable>
+
+        {/* ═══ DIVULGAR O TRABALHO ═══════════════════════════════════
+            Bloco próprio, com título, e não mais três campos soltos no meio
+            do formulário. Estes campos só existem por causa de UMA decisão —
+            aparecer ou não no diretório — e agrupá-los é o que deixa isso
+            claro antes de a pessoa preencher qualquer coisa. */}
+        <View className="gap-md pt-lg">
+          <View className="gap-xs">
+            <Text
+              className="font-serif-bold text-lg text-ink"
+              style={{ letterSpacing: tracking.heading }}
+            >
+              Divulgar meu trabalho
+            </Text>
+            <Text className="font-sans text-[13px] leading-5 text-ink-muted">
+              A igreja tem pedreiro, costureira, professora, eletricista e quase
+              ninguém sabe. Aqui você aparece para quem precisa do que você faz.
+            </Text>
+          </View>
+
+          <TextField
+            label="Telefone"
+            placeholder="(67) 99999-1234"
+            value={telefone}
+            onChangeText={(v) => setTelefone(maskPhone(v))}
+            keyboardType="phone-pad"
+            maxLength={15}
+          />
+
+          <TextField
+            label="Especialidade"
+            placeholder="Ex: reformas, acabamento e pequenos reparos"
+            value={especializacao}
+            onChangeText={setEspecializacao}
+            multiline
+            numberOfLines={2}
+          />
+
+          <Pressable
+            className="flex-row items-center gap-3 rounded-lg border border-outline-variant bg-surface-container-low p-3"
+            accessibilityRole="switch"
+            accessibilityState={{ checked: divulgarTrabalho }}
+            onPress={() => setDivulgarTrabalho((v) => !v)}
+          >
+            <View className="flex-1">
+              <Text className="font-sans-medium text-sm text-ink">
+                Aparecer em "Trabalhos da comunidade"
+              </Text>
+              {/* Diz exatamente O QUE é publicado e PARA QUEM. Um interruptor
+                  que só diz "divulgar meu trabalho" pede consentimento sem
+                  informar — e consentimento sem informação não é escolha. */}
+              <Text className="font-sans text-xs leading-4 text-ink-muted">
+                {divulgarTrabalho
+                  ? 'Seu nome, foto, profissão, especialidade e um botão de WhatsApp ficam visíveis para os membros da igreja. Você pode desligar quando quiser.'
+                  : 'Nada seu aparece na lista. Ao ligar, seu nome, foto, profissão, especialidade e um botão de WhatsApp ficam visíveis para os membros da igreja.'}
+              </Text>
+              <Text className="mt-1 font-sans text-xs leading-4 text-ink-muted">
+                Precisa de telefone e data de nascimento preenchidos. A data não
+                aparece para ninguém, serve só para confirmar maioridade.
+              </Text>
+            </View>
+            <Ionicons
+              name={divulgarTrabalho ? 'toggle' : 'toggle-outline'}
+              size={26}
+              color={divulgarTrabalho ? colors.gold : colors.outline}
+            />
+          </Pressable>
+        </View>
 
         {error && <Text className="text-center font-sans text-sm text-error">{error}</Text>}
 

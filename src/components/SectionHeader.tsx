@@ -23,7 +23,7 @@ export function SectionHeader({
   onActionPress,
 }: SectionHeaderProps) {
   return (
-    <View className="mb-sm gap-1">
+    <View className="mb-md gap-1">
       <View className="flex-row items-end justify-between">
         <View className="flex-1 gap-1 pr-4">
           {eyebrow ? (

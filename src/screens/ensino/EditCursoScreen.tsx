@@ -73,12 +73,18 @@ export function EditCursoScreen({ route, navigation }: Props) {
         capitulos: itensParaCapitulos(itensEmenta),
       });
 
-      // A tela de detalhe lê do cache. Sem invalidar, a pessoa salvaria a
-      // ementa e voltaria para a versão antiga — parecendo que não gravou.
-      await queryClient.invalidateQueries({
-        queryKey: cursosKeys.all,
-        refetchType: 'all',
-      });
+      // Detalhe (nome, ementa, duração) e as listas, porque o nome e a
+      // categoria aparecem no card. As turmas não mudam ao editar o curso.
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: cursosKeys.detalhe(route.params.id),
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: cursosKeys.listas(),
+          refetchType: 'all',
+        }),
+      ]);
 
       navigation.goBack();
     } catch (e) {
@@ -108,7 +114,7 @@ export function EditCursoScreen({ route, navigation }: Props) {
 
       <ScrollView
         className="flex-1 px-gutter"
-        contentContainerClassName="gap-4 py-lg"
+        contentContainerClassName="gap-4 py-3xl"
         keyboardShouldPersistTaps="handled"
       >
         <TextField

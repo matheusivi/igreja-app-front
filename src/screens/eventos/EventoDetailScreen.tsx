@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Chip } from '../../components';
@@ -8,12 +7,13 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import type { AppStackParamList } from '../../navigation/types';
 import { useAuth } from '../../navigation/AuthContext';
 import { extractErrorMessage } from '../../services/api';
+import { urlImagem } from '../../services/imagem';
 import {
-  eventsService,
   formatEventDate,
   formatEventTime,
   type EventoDetalhe,
 } from '../../services/events.service';
+import { useEvento } from '../../hooks/queries/useEventos';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'EventoDetail'>;
 
@@ -55,24 +55,17 @@ function InfoRow({
 export function EventoDetailScreen({ route, navigation }: Props) {
   const colors = useThemeColors();
   const { user } = useAuth();
-  const [evento, setEvento] = useState<EventoDetalhe | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Do cache: editar o evento e voltar para cá mostra a versão nova. Antes
+  // este `useEffect` carregava uma vez e o detalhe ficava desatualizado.
+  const {
+    data: evento,
+    isPending: isLoading,
+    error: queryError,
+  } = useEvento(route.params.id);
 
-  useEffect(() => {
-    async function load() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        setEvento(await eventsService.getEvento(route.params.id));
-      } catch (e) {
-        setError(extractErrorMessage(e, 'Não foi possível carregar o evento.'));
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    load();
-  }, [route.params.id]);
+  const error = queryError
+    ? extractErrorMessage(queryError, 'Não foi possível carregar o evento.')
+    : null;
 
   const podeEditar =
     !!evento &&
@@ -112,10 +105,10 @@ export function EventoDetailScreen({ route, navigation }: Props) {
           <Button label="Voltar" variant="secondary" fullWidth={false} onPress={() => navigation.goBack()} />
         </View>
       ) : (
-        <ScrollView contentContainerClassName="gap-md px-gutter py-lg">
+        <ScrollView contentContainerClassName="gap-xl px-gutter py-3xl">
           {evento.imagemUrl ? (
             <Image
-              source={{ uri: evento.imagemUrl }}
+              source={{ uri: urlImagem(evento.imagemUrl, { largura: 353, altura: 199 }) }}
               className="w-full rounded-xl"
               style={{ aspectRatio: 16 / 9 }}
               resizeMode="cover"

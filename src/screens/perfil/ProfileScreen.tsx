@@ -12,6 +12,9 @@ import { useTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../../navigation/AuthContext';
 import type { AppStackParamList } from '../../navigation/types';
 import { getCriadorNome } from '../../services/groups.service';
+import { urlImagem } from '../../services/imagem';
+import { rotuloProfissao } from '../../services/profissoes';
+import { EspacoTabBar } from '../../navigation/TabBar';
 
 type Tab = 'cursos' | 'familia';
 
@@ -24,6 +27,20 @@ export function ProfileScreen() {
   const colors = useThemeColors();
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const { user, signOut } = useAuth();
+
+  /** A cara da igreja é decisão de quem responde por ela. Líder fica fora. */
+  /**
+   * As duas entradas de pastorado: a cara do app e quem é líder.
+   *
+   * Mesma condição, uma constante só — quando um terceiro item aparecer, ele
+   * herda a regra em vez de reescrevê-la com uma vírgula fora do lugar.
+   *
+   * Líder fica de fora dos dois de propósito. Da aparência, porque o topo da
+   * Home é a cara da igreja, não a de um ministério. Da liderança, porque
+   * quem recebeu autoridade não distribui autoridade.
+   */
+  const ehPastorado = ['Pastor', 'Administrador'].includes(user?.perfil ?? '');
+
   const [activeTab, setActiveTab] = useState<Tab>('cursos');
   const { isDark, toggle } = useTheme();
 
@@ -38,7 +55,7 @@ export function ProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <ScrollView className="flex-1 px-gutter" contentContainerClassName="gap-md py-lg">
+      <ScrollView className="flex-1 px-gutter" contentContainerClassName="gap-xl py-3xl">
         {/* Identidade */}
         <View className="items-center gap-2">
           <Pressable
@@ -50,7 +67,7 @@ export function ProfileScreen() {
             <View className="h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-2 border-gold bg-surface-container-high">
               {user?.fotoUrl ? (
                 <Image
-                  source={{ uri: user.fotoUrl }}
+                  source={{ uri: urlImagem(user.fotoUrl, { largura: 80, altura: 80 }) }}
                   style={{ width: '100%', height: '100%' }}
                   resizeMode="cover"
                 />
@@ -73,7 +90,9 @@ export function ProfileScreen() {
                 <Text className="font-sans text-xs text-ink-muted">{user.sexo}</Text>
               ) : null}
               {user.profissao ? (
-                <Text className="font-sans text-xs text-ink-muted">{user.profissao}</Text>
+                <Text className="font-sans text-xs text-ink-muted">
+                  {rotuloProfissao(user.profissao)}
+                </Text>
               ) : null}
             </View>
           )}
@@ -117,7 +136,7 @@ export function ProfileScreen() {
                     {activeMatricula.nomeCurso}
                   </Text>
                   {activeMatricula.nomeSala ? (
-                    <Text className="font-sans text-xs text-outline">
+                    <Text className="font-sans text-xs text-ink-muted">
                       Turma: {activeMatricula.nomeSala}
                     </Text>
                   ) : null}
@@ -178,7 +197,7 @@ export function ProfileScreen() {
                     <Card contentClassName="flex-row items-center justify-between">
                       {grupo.imagemUrl ? (
                         <Image
-                          source={{ uri: grupo.imagemUrl }}
+                          source={{ uri: urlImagem(grupo.imagemUrl, { largura: 56, altura: 56 }) }}
                           className="mr-3 h-14 w-14 rounded-lg"
                           resizeMode="cover"
                         />
@@ -208,7 +227,7 @@ export function ProfileScreen() {
               <Text className="text-center font-sans text-sm text-ink-muted">
                 Você ainda não faz parte de nenhum grupo familiar.
               </Text>
-              <Text className="text-center font-sans text-xs text-outline">
+              <Text className="text-center font-sans text-xs text-ink-muted">
                 Peça pra alguém do grupo te convidar.
               </Text>
             </Card>
@@ -221,6 +240,76 @@ export function ProfileScreen() {
             Acesso rápido
           </Text>
           <Card contentClassName="gap-0" padded={false}>
+            {/* ═══ ABERTO A TODO MEMBRO ═══
+                A igreja conhecendo o trabalho da própria gente. Fica aqui
+                porque serve a todos — não é ferramenta de liderança.
+
+                A busca de pessoas e famílias, que morava logo abaixo, saiu:
+                ela virou o campo no topo da aba Grupos, onde digitar o nome
+                de alguém traz a casa dessa pessoa. Duas portas para a mesma
+                pergunta faziam a segunda parecer outra coisa. */}
+            <Pressable
+              className="flex-row items-center justify-between px-4 py-3"
+              accessibilityRole="button"
+              onPress={() => navigation.navigate('Profissionais')}
+            >
+              <View className="flex-row items-center gap-3">
+                <Ionicons name="briefcase-outline" size={18} color={colors.secondary} />
+                <Text className="font-sans text-sm text-ink">Trabalhos da comunidade</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+            </Pressable>
+            <View className="h-px bg-outline-variant" />
+
+            {/* ═══ SÓ PASTOR E ADMINISTRADOR ═══
+                A capa e a frase do topo são a primeira coisa que todo membro
+                vê ao abrir o app — é a cara da igreja, não a de um
+                ministério, então Líder fica de fora.
+
+                Esconder a entrada não é a segurança: quem recusa é o serviço,
+                com 403. Aqui é arrumação. */}
+            {ehPastorado ? (
+              <>
+                <Pressable
+                  className="flex-row items-center justify-between px-4 py-3"
+                  accessibilityRole="button"
+                  onPress={() => navigation.navigate('AparenciaHome')}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <Ionicons name="image-outline" size={18} color={colors.secondary} />
+                    <Text className="font-sans text-sm text-ink">
+                      Aparência da tela inicial
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+                </Pressable>
+                <View className="h-px bg-outline-variant" />
+
+                {/* "Liderança da igreja", e não "Membros": o nome antigo
+                    descrevia o que a tela LISTAVA. Numa lista de opções, o
+                    rótulo precisa dizer o que a tela FAZ — senão o pastor
+                    procura onde promover alguém e passa direto por ela. */}
+                <Pressable
+                  className="flex-row items-center justify-between px-4 py-3"
+                  accessibilityRole="button"
+                  onPress={() => navigation.navigate('Membros')}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <Ionicons
+                      name="shield-checkmark-outline"
+                      size={18}
+                      color={colors.secondary}
+                    />
+                    <Text className="font-sans text-sm text-ink">
+                      Liderança da igreja
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+                </Pressable>
+                <View className="h-px bg-outline-variant" />
+              </>
+            ) : null}
+
             <Pressable
               className="flex-row items-center justify-between px-4 py-3"
               onPress={() => navigation.navigate('EditProfile')}
@@ -262,6 +351,10 @@ export function ProfileScreen() {
             </Pressable>
           </Card>
         </View>
+        {/* A barra de abas flutua sobre o conteúdo, fora do fluxo do layout.
+            Sem este espaço, o último item da lista fica permanentemente
+            escondido atrás dela. */}
+        <EspacoTabBar />
       </ScrollView>
     </SafeAreaView>
   );

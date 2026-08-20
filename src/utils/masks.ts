@@ -7,6 +7,45 @@
  */
 
 /** Formata enquanto digita: 01072026 → 01/07/2026 */
+/**
+ * Máscara de telefone brasileiro: (67) 99999-1234 e (67) 3421-1234.
+ *
+ * A máscara é só apresentação — o que vai para o servidor são os dígitos
+ * puros (`somenteDigitos`). Gravar com parênteses e traço obrigaria toda
+ * consulta e todo link de WhatsApp a limpar a string de novo, e bastaria um
+ * lugar esquecer para o botão abrir conversa com número inválido.
+ *
+ * O nono dígito decide o formato: 11 dígitos é celular (5 + 4), 10 é fixo
+ * (4 + 4). A troca acontece enquanto se digita, o que é o comportamento
+ * esperado — quem digita um celular vê o formato de celular aparecer sozinho.
+ */
+export function maskPhone(input: string): string {
+  const d = input.replace(/\D/g, '').slice(0, 11);
+  if (d.length === 0) return '';
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+export function somenteDigitos(valor: string): string {
+  return valor.replace(/\D/g, '');
+}
+
+/**
+ * Link de conversa do WhatsApp.
+ *
+ * O `55` é acrescentado quando não está lá. Quem cadastra o próprio telefone
+ * digita "(67) 99999-1234", não "+55" — e o `wa.me` sem código de país abre
+ * uma conversa com um número que não existe, sem erro nenhum: a tela do
+ * WhatsApp só diz "número inválido" e a pessoa culpa o app da igreja.
+ */
+export function linkWhatsapp(telefone: string): string {
+  const d = somenteDigitos(telefone);
+  const comPais = d.startsWith('55') ? d : `55${d}`;
+  return `https://wa.me/${comPais}`;
+}
+
 export function maskDate(input: string): string {
   const digits = input.replace(/\D/g, '').slice(0, 8);
   if (digits.length <= 2) return digits;

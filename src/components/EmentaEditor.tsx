@@ -63,7 +63,7 @@ export function EmentaEditor({ itens, onChange }: EmentaEditorProps) {
       <Text className="font-sans-semibold text-xs uppercase tracking-wide text-ink-muted">
         Ementa do curso
       </Text>
-      <Text className="font-sans text-xs leading-4 text-outline">
+      <Text className="font-sans text-xs leading-4 text-ink-muted">
         Os temas estudados semana a semana. Aparecem no curso como "O que você
         vai estudar".
       </Text>
