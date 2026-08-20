@@ -15,6 +15,9 @@
     "teste": {
       "distribution": "internal",
       "channel": "teste",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ibvi.novafeira.com.br"
+      },
       "android": {
         "buildType": "apk"
       }
@@ -23,6 +26,9 @@
       "distribution": "store",
       "channel": "producao",
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ibvi.novafeira.com.br"
+      },
       "android": {
         "buildType": "app-bundle"
       }
