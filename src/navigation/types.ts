@@ -42,4 +42,19 @@ export type AppStackParamList = {
   PlanoLeitura: undefined;
   /** Capa e frase do topo da Home — só Pastor e Administrador. */
   AparenciaHome: undefined;
+  /**
+   * Quem a pessoa escolheu não ver mais no mural, e o botão de desfazer.
+   *
+   * Exigência das lojas para app com conteúdo escrito por usuário: não basta
+   * poder bloquear, tem que dar para rever e desfazer.
+   */
+  Bloqueados: undefined;
+  /**
+   * Exclusão da própria conta.
+   *
+   * Tela separada, e não um botão dentro do Perfil, de propósito: é a ação
+   * sem volta do app. Exigir uma navegação a mais tira a chance do toque
+   * distraído ao lado de "Sair".
+   */
+  ExcluirConta: undefined;
 };

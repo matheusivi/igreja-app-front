@@ -21,6 +21,8 @@ import { PlanoLeituraScreen } from '../screens/leitura/PlanoLeituraScreen';
 import { ProfissionaisScreen } from '../screens/comunidade/ProfissionaisScreen';
 import { AparenciaHomeScreen } from '../screens/lideranca/AparenciaHomeScreen';
 import { SalaParticipantesScreen } from '../screens/lideranca/SalaParticipantesScreen';
+import { BloqueadosScreen } from '../screens/perfil/BloqueadosScreen';
+import { ExcluirContaScreen } from '../screens/perfil/ExcluirContaScreen';
 import { MainTabs } from './MainTabs';
 import type { AppStackParamList } from './types';
 
@@ -60,6 +62,11 @@ export function AppStack() {
       <Stack.Screen name="CreateEvento" component={CreateEventoScreen} />
       <Stack.Screen name="CreateSala" component={CreateSalaScreen} />
       <Stack.Screen name="SalaParticipantes" component={SalaParticipantesScreen} />
+      {/* Moderação e saída da conta. Exigências das duas lojas para publicar:
+          conteúdo escrito por usuário precisa de denunciar e bloquear, e quem
+          cria conta precisa conseguir apagá-la de dentro do app. */}
+      <Stack.Screen name="Bloqueados" component={BloqueadosScreen} />
+      <Stack.Screen name="ExcluirConta" component={ExcluirContaScreen} />
     </Stack.Navigator>
   );
 }

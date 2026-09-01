@@ -340,6 +340,20 @@ export function ProfileScreen() {
               />
             </Pressable>
             <View className="h-px bg-outline-variant" />
+            {/* Quem a pessoa escolheu não ver no mural. Fica aqui, e não
+                escondido em alguma tela de ajuda: as lojas exigem que bloquear
+                seja reversível num lugar que dê para achar. */}
+            <Pressable
+              className="flex-row items-center justify-between px-4 py-3"
+              onPress={() => navigation.navigate('Bloqueados')}
+            >
+              <View className="flex-row items-center gap-3">
+                <Ionicons name="eye-off-outline" size={18} color={colors.secondary} />
+                <Text className="font-sans text-sm text-ink">Pessoas bloqueadas</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+            </Pressable>
+            <View className="h-px bg-outline-variant" />
             <Pressable
               className="flex-row items-center justify-between px-4 py-3"
               onPress={signOut}
@@ -350,6 +364,27 @@ export function ProfileScreen() {
               </View>
             </Pressable>
           </Card>
+
+          {/*
+            ═══ EXCLUIR A CONTA FICA FORA DO CARTÃO, E POR ÚLTIMO ═══
+            Separado do resto de propósito. Dentro da mesma lista, ficaria
+            encostado em "Sair da conta" — duas ações de saída lado a lado, uma
+            reversível e a outra não. Quem quer sair e toca um item abaixo
+            apagaria tudo.
+
+            Sem ícone e em texto menor: precisa ser encontrável por quem
+            procura, e invisível para quem não está procurando. As lojas exigem
+            que exista e que dê para achar; não exigem que compita por atenção.
+          */}
+          <Pressable
+            className="items-center py-4"
+            onPress={() => navigation.navigate('ExcluirConta')}
+            hitSlop={8}
+          >
+            <Text className="font-sans text-[13px] text-ink-muted underline">
+              Excluir minha conta
+            </Text>
+          </Pressable>
         </View>
         {/* A barra de abas flutua sobre o conteúdo, fora do fluxo do layout.
             Sem este espaço, o último item da lista fica permanentemente

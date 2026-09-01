@@ -24,6 +24,11 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import { EspacoTabBar } from '../../navigation/TabBar';
 import { useAuth } from '../../navigation/AuthContext';
 import { extractErrorMessage } from '../../services/api';
+import {
+  MOTIVOS_DENUNCIA,
+  moderacaoService,
+  type MotivoDenuncia,
+} from '../../services/moderacao.service';
 import { formatRelativeTime, type PedidoOracao } from '../../services/prayer.service';
 import { REACAO_VAZIA, type ReacaoPedido } from '../../services/reacaoOracao.service';
 import { useAtualizarPuxando } from '../../hooks/useAtualizarPuxando';
@@ -225,6 +230,107 @@ export function PrayerWallScreen() {
     );
   }
 
+  /**
+   * ╔═══════════════════════════════════════════════════════════════════╗
+   * ║  DENUNCIAR E BLOQUEAR                                             ║
+   * ╚═══════════════════════════════════════════════════════════════════╝
+   *
+   * As duas ações que as lojas exigem em app com conteúdo escrito por usuário
+   * — e que, mais do que isso, dão saída imediata a quem se sentiu exposto
+   * num mural que a igreja inteira lê.
+   *
+   * ═══ POR QUE OS DOIS, E NÃO SÓ UM ═══
+   *   DENUNCIAR  pede que a liderança olhe — leva o tempo que levar
+   *   BLOQUEAR   resolve agora, sozinha, sem depender de ninguém
+   *
+   * Quem foi ofendido não deveria precisar esperar o domingo.
+   *
+   * ═══ POR QUE `Alert` E NÃO UMA TELA ═══
+   * É menu nativo do sistema, aparece na hora e fecha com um toque fora. Uma
+   * tela para escolher entre duas opções seria cerimônia demais para uma ação
+   * que precisa ser rápida — e a pressa aqui é do lado de quem está incomodado.
+   */
+  function abrirMaisOpcoes(pedido: PedidoOracao) {
+    const nome = pedido.autor.nomeCompleto || 'esta pessoa';
+
+    Alert.alert(nome, 'O que você quer fazer?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Denunciar este pedido',
+        onPress: () => escolherMotivo(pedido),
+      },
+      {
+        text: 'Bloquear esta pessoa',
+        style: 'destructive',
+        onPress: () => confirmarBloqueio(pedido),
+      },
+    ]);
+  }
+
+  /**
+   * O motivo é lista fechada, não texto livre.
+   *
+   * Campo em branco trava justamente quem está incomodado, e produz cinquenta
+   * redações diferentes para o mesmo problema — impossível de agrupar por quem
+   * revisa. A lista é a mesma do servidor; divergir daria 400 sem explicação.
+   */
+  function escolherMotivo(pedido: PedidoOracao) {
+    Alert.alert(
+      'Qual o motivo?',
+      'A liderança da igreja vai analisar.',
+      [
+        ...MOTIVOS_DENUNCIA.map((motivo) => ({
+          text: motivo,
+          onPress: () => enviarDenuncia(pedido, motivo),
+        })),
+        { text: 'Cancelar', style: 'cancel' as const },
+      ],
+    );
+  }
+
+  async function enviarDenuncia(pedido: PedidoOracao, motivo: MotivoDenuncia) {
+    try {
+      await moderacaoService.denunciarPedido(pedido.id, motivo);
+      Alert.alert(
+        'Denúncia enviada',
+        'A liderança vai analisar. Se preferir não ver mais publicações desta pessoa, você também pode bloqueá-la.',
+      );
+    } catch (e) {
+      Alert.alert('Erro', extractErrorMessage(e, 'Não foi possível denunciar.'));
+    }
+  }
+
+  function confirmarBloqueio(pedido: PedidoOracao) {
+    const nome = pedido.autor.nomeCompleto || 'esta pessoa';
+
+    Alert.alert(
+      `Bloquear ${nome}?`,
+      // Dizer o que NÃO acontece importa tanto quanto o que acontece. Sem
+      // isso, muita gente não bloqueia com medo de gerar confusão na igreja.
+      'Você deixa de ver as publicações dela no mural. Ela não é avisada e não perde nada. Dá para desfazer no seu perfil.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Bloquear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await moderacaoService.bloquear(pedido.autor.id);
+              // Recarrega o mural: os pedidos dessa pessoa somem da consulta,
+              // no servidor. Filtrar aqui na tela deixaria a paginação errada.
+              await refetch();
+            } catch (e) {
+              Alert.alert(
+                'Erro',
+                extractErrorMessage(e, 'Não foi possível bloquear.'),
+              );
+            }
+          },
+        },
+      ],
+    );
+  }
+
   function renderPedido(pedido: PedidoOracao) {
     return (
       <CartaoPedido
@@ -235,6 +341,7 @@ export function PrayerWallScreen() {
         podeExcluir={pedido.autor.id === user?.id || isModerador}
         onReagir={(tipo) => alternarReacao.mutate({ pedidoId: pedido.id, tipo })}
         onExcluir={() => confirmarExclusao(pedido)}
+        onMaisOpcoes={() => abrirMaisOpcoes(pedido)}
       />
     );
   }
@@ -463,6 +570,7 @@ function CartaoPedido({
   podeExcluir,
   onReagir,
   onExcluir,
+  onMaisOpcoes,
 }: {
   pedido: PedidoOracao;
   ehMeu: boolean;
@@ -470,6 +578,7 @@ function CartaoPedido({
   podeExcluir: boolean;
   onReagir: (tipo: 'praying' | 'amen') => void;
   onExcluir: () => void;
+  onMaisOpcoes: () => void;
 }) {
   const colors = useThemeColors();
   const ehLideranca = ['Líder', 'Pastor', 'Administrador'].includes(pedido.autor.perfil);
@@ -521,8 +630,34 @@ function CartaoPedido({
           · {formatRelativeTime(pedido.dataEnvio)}
         </Text>
 
-        {podeExcluir ? (
-          <View className="ml-auto">
+        <View className="ml-auto flex-row items-center gap-lg">
+          {/*
+            ═══ DENUNCIAR E BLOQUEAR ═══
+            Só em pedido de OUTRA pessoa. No próprio já existe a lixeira, e
+            denunciar o que você mesmo escreveu só criaria fila de trabalho
+            para a liderança resolver algo que você resolve num toque.
+
+            Três pontinhos em vez de dois ícones soltos: são ações raras e
+            sérias, e mantê-las atrás de um menu evita o toque acidental ao
+            lado do "Vou orar", que é o botão que a pessoa realmente procura.
+          */}
+          {!ehMeu ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Mais opções sobre o pedido de ${pedido.autor.nomeCompleto || 'outro membro'}`}
+              hitSlop={13}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+              onPress={onMaisOpcoes}
+            >
+              <MaterialCommunityIcons
+                name="dots-horizontal"
+                size={18}
+                color={colors.inkMuted}
+              />
+            </Pressable>
+          ) : null}
+
+          {podeExcluir ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
@@ -543,8 +678,8 @@ function CartaoPedido({
                 color={ehMeu ? colors.inkMuted : colors.error}
               />
             </Pressable>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
       </View>
 
       {/* ── A resposta ───────────────────────────────────────────────

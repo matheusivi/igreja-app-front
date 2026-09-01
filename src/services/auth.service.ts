@@ -151,6 +151,20 @@ export const authService = {
     }
   },
 
+  /**
+   * Apaga a própria conta. Não tem volta.
+   *
+   * A senha vai junto porque é a única ação irreversível do app, e um toque
+   * distraído não pode bastar — celular desbloqueado na mão de outra pessoa,
+   * criança mexendo. A senha prova que é a dona agindo agora.
+   *
+   * Quem chama é responsável por derrubar a sessão em seguida: o token ainda
+   * está no aparelho, e o servidor já invalidou tudo do outro lado.
+   */
+  async excluirConta(senha: string): Promise<void> {
+    await api.delete('/api/auth/me', { data: { senha } });
+  },
+
   getRememberedEmail(): Promise<string | null> {
     return AsyncStorage.getItem(REMEMBERED_EMAIL_KEY);
   },
