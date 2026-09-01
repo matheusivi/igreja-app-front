@@ -1,17 +1,14 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ListaVazia, ScreenHeader } from '../../components';
+import { useBloqueados, useDesbloquear } from '../../hooks/queries/useModeracao';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import type { AppStackParamList } from '../../navigation/types';
 import { extractErrorMessage } from '../../services/api';
 import { urlImagem } from '../../services/imagem';
-import {
-  moderacaoService,
-  type PessoaBloqueada,
-} from '../../services/moderacao.service';
+import type { PessoaBloqueada } from '../../services/moderacao.service';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Bloqueados'>;
 
@@ -29,26 +26,15 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Bloqueados'>;
  */
 export function BloqueadosScreen({ navigation }: Props) {
   const colors = useThemeColors();
-  const [lista, setLista] = useState<PessoaBloqueada[]>([]);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
-  /** Quem está sendo desbloqueado agora, para desabilitar só aquele botão. */
-  const [emAndamento, setEmAndamento] = useState<number | null>(null);
 
-  const carregar = useCallback(async () => {
-    try {
-      setErro(null);
-      setLista(await moderacaoService.listarBloqueados());
-    } catch (e) {
-      setErro(extractErrorMessage(e, 'Não foi possível carregar a lista.'));
-    } finally {
-      setCarregando(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void carregar();
-  }, [carregar]);
+  /**
+   * A mesma consulta que o Perfil usa para decidir se mostra a entrada
+   * "Pessoas bloqueadas". Compartilhando o cache, as duas telas custam UMA
+   * requisição — e desbloquear aqui faz a entrada sumir de lá sozinha, porque
+   * a mutação invalida a chave comum.
+   */
+  const { bloqueados: lista, carregando, erro } = useBloqueados();
+  const desbloquear = useDesbloquear();
 
   function confirmarDesbloqueio(pessoa: PessoaBloqueada) {
     Alert.alert(
@@ -58,22 +44,14 @@ export function BloqueadosScreen({ navigation }: Props) {
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Desbloquear',
-          onPress: async () => {
-            setEmAndamento(pessoa.id);
-            try {
-              await moderacaoService.desbloquear(pessoa.id);
-              // Remoção local em vez de recarregar tudo: a resposta já
-              // confirmou, e uma nova requisição só faria a lista piscar.
-              setLista((atual) => atual.filter((p) => p.id !== pessoa.id));
-            } catch (e) {
-              Alert.alert(
-                'Erro',
-                extractErrorMessage(e, 'Não foi possível desbloquear.'),
-              );
-            } finally {
-              setEmAndamento(null);
-            }
-          },
+          onPress: () =>
+            desbloquear.mutate(pessoa.id, {
+              onError: (e) =>
+                Alert.alert(
+                  'Erro',
+                  extractErrorMessage(e, 'Não foi possível desbloquear.'),
+                ),
+            }),
         },
       ],
     );
@@ -103,7 +81,7 @@ export function BloqueadosScreen({ navigation }: Props) {
           />
         ) : erro ? (
           <Text className="py-3xl text-center font-sans text-[14px] text-ink-muted">
-            {erro}
+            {extractErrorMessage(erro, 'Não foi possível carregar a lista.')}
           </Text>
         ) : lista.length === 0 ? (
           <ListaVazia
@@ -142,15 +120,25 @@ export function BloqueadosScreen({ navigation }: Props) {
                   {pessoa.nomeCompleto}
                 </Text>
 
+                {/*
+                  `variables` guarda o argumento da mutação em andamento — é
+                  como saber QUAL linha está sendo desbloqueada sem manter um
+                  estado próprio para isso. Com uma flag booleana, todas as
+                  linhas mostrariam "…" ao mesmo tempo.
+                */}
                 <Pressable
                   onPress={() => confirmarDesbloqueio(pessoa)}
-                  disabled={emAndamento === pessoa.id}
+                  disabled={
+                    desbloquear.isPending && desbloquear.variables === pessoa.id
+                  }
                   hitSlop={8}
                   style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                 >
                   <View className="rounded-full border border-outline px-3 py-1.5">
                     <Text className="font-sans-semibold text-[13px] text-secondary">
-                      {emAndamento === pessoa.id ? '…' : 'Desbloquear'}
+                      {desbloquear.isPending && desbloquear.variables === pessoa.id
+                        ? '…'
+                        : 'Desbloquear'}
                     </Text>
                   </View>
                 </Pressable>

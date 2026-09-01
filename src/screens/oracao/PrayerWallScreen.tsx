@@ -19,6 +19,7 @@ import {
   useExcluirPedido,
   usePedidosOracao,
 } from '../../hooks/queries/usePedidosOracao';
+import { useBloquear, useDenunciar } from '../../hooks/queries/useModeracao';
 import { useAlternarReacao, useReacoesOracao } from '../../hooks/queries/useReacoesOracao';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { EspacoTabBar } from '../../navigation/TabBar';
@@ -26,7 +27,6 @@ import { useAuth } from '../../navigation/AuthContext';
 import { extractErrorMessage } from '../../services/api';
 import {
   MOTIVOS_DENUNCIA,
-  moderacaoService,
   type MotivoDenuncia,
 } from '../../services/moderacao.service';
 import { formatRelativeTime, type PedidoOracao } from '../../services/prayer.service';
@@ -141,6 +141,8 @@ export function PrayerWallScreen() {
    */
   const reacoes = useReacoesOracao();
   const alternarReacao = useAlternarReacao();
+  const denunciar = useDenunciar();
+  const bloquear = useBloquear();
 
   const [compondo, setCompondo] = useState(false);
   const [texto, setTexto] = useState('');
@@ -288,16 +290,19 @@ export function PrayerWallScreen() {
     );
   }
 
-  async function enviarDenuncia(pedido: PedidoOracao, motivo: MotivoDenuncia) {
-    try {
-      await moderacaoService.denunciarPedido(pedido.id, motivo);
-      Alert.alert(
-        'Denúncia enviada',
-        'A liderança vai analisar. Se preferir não ver mais publicações desta pessoa, você também pode bloqueá-la.',
-      );
-    } catch (e) {
-      Alert.alert('Erro', extractErrorMessage(e, 'Não foi possível denunciar.'));
-    }
+  function enviarDenuncia(pedido: PedidoOracao, motivo: MotivoDenuncia) {
+    denunciar.mutate(
+      { alvoId: pedido.id, motivo },
+      {
+        onSuccess: () =>
+          Alert.alert(
+            'Denúncia enviada',
+            'A liderança vai analisar. Se preferir não ver mais publicações desta pessoa, você também pode bloqueá-la.',
+          ),
+        onError: (e) =>
+          Alert.alert('Erro', extractErrorMessage(e, 'Não foi possível denunciar.')),
+      },
+    );
   }
 
   function confirmarBloqueio(pedido: PedidoOracao) {
@@ -313,19 +318,18 @@ export function PrayerWallScreen() {
         {
           text: 'Bloquear',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await moderacaoService.bloquear(pedido.autor.id);
-              // Recarrega o mural: os pedidos dessa pessoa somem da consulta,
-              // no servidor. Filtrar aqui na tela deixaria a paginação errada.
-              await refetch();
-            } catch (e) {
-              Alert.alert(
-                'Erro',
-                extractErrorMessage(e, 'Não foi possível bloquear.'),
-              );
-            }
-          },
+          // A mutação invalida duas caches de uma vez: a do mural, que recarrega
+          // sem os pedidos dessa pessoa (o filtro é no servidor, senão a
+          // paginação mentiria), e a de bloqueados, que faz a entrada aparecer
+          // no Perfil na hora.
+          onPress: () =>
+            bloquear.mutate(pedido.autor.id, {
+              onError: (e) =>
+                Alert.alert(
+                  'Erro',
+                  extractErrorMessage(e, 'Não foi possível bloquear.'),
+                ),
+            }),
         },
       ],
     );

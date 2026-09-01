@@ -64,10 +64,29 @@ export function extractErrorMessage(
   if (!axios.isAxiosError(error)) return fallback;
 
   if (!error.response) {
-    if (error.code === 'ECONNABORTED') {
-      return `O servidor demorou demais para responder (${API_BASE_URL}). Verifique se ele está rodando.`;
+    /**
+     * ═══ DUAS MENSAGENS: UMA PARA VOCÊ, OUTRA PARA A CONGREGAÇÃO ═══
+     * A versão antiga dizia "confira se o backend está rodando e se o celular
+     * está na mesma rede Wi-Fi do computador" — e ia para o app publicado.
+     *
+     * Para um membro da igreja isso é ininteligível: ele não tem backend nem
+     * computador nessa história. Pior, dá a entender que a culpa é dele e que
+     * existe algo a fazer. Mostrava também o endereço do servidor, que não
+     * ajuda em nada quem só quer ver o aviso do culto.
+     *
+     * Em produção a resposta honesta é curta: não deu para conectar, tente de
+     * novo. Em desenvolvimento, o endereço é a informação mais útil que existe
+     * — é quase sempre ele que está errado.
+     */
+    if (__DEV__) {
+      return error.code === 'ECONNABORTED'
+        ? `O servidor demorou demais para responder (${API_BASE_URL}).`
+        : `Não foi possível falar com o servidor (${API_BASE_URL}). Confira se o backend está rodando e se o celular alcança esse endereço.`;
     }
-    return `Não foi possível falar com o servidor (${API_BASE_URL}). Confira se o backend está rodando e se o celular está na mesma rede Wi-Fi do computador.`;
+
+    return error.code === 'ECONNABORTED'
+      ? 'O servidor demorou para responder. Verifique sua conexão e tente de novo.'
+      : 'Não foi possível conectar. Verifique sua internet e tente de novo.';
   }
 
   const data = error.response.data;

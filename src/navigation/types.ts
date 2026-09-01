@@ -50,6 +50,12 @@ export type AppStackParamList = {
    */
   Bloqueados: undefined;
   /**
+   * A fila de denúncias. Só liderança chega aqui pelo Perfil, e o serviço no
+   * servidor recusa com 403 quem não tiver cargo — a tela é arrumação, a
+   * guarda é lá.
+   */
+  Denuncias: undefined;
+  /**
    * Exclusão da própria conta.
    *
    * Tela separada, e não um botão dentro do Perfil, de propósito: é a ação

@@ -30,6 +30,28 @@ export type PessoaBloqueada = {
   bloqueadoEm: string;
 };
 
+/**
+ * Uma denúncia na fila da liderança.
+ *
+ * `conteudo` vem nulo quando o pedido já foi apagado — pelo autor ou por outro
+ * líder que agiu antes. Não é erro: é o desfecho mais comum de uma denúncia
+ * bem resolvida, e a tela usa isso para oferecer só o arquivamento.
+ */
+export type Denuncia = {
+  id: number;
+  tipo: string;
+  alvoId: number;
+  motivo: string;
+  criadaEm: string;
+  denunciante: { id: number; nomeCompleto: string };
+  conteudo: {
+    id: number;
+    descricaoPedido: string;
+    dataEnvio: string;
+    autor: { id: number; nomeCompleto: string; perfil: string };
+  } | null;
+};
+
 export const moderacaoService = {
   async denunciarPedido(alvoId: number, motivo: MotivoDenuncia): Promise<void> {
     await api.post('/api/moderacao/denuncias', {
@@ -50,5 +72,15 @@ export const moderacaoService = {
   async listarBloqueados(): Promise<PessoaBloqueada[]> {
     const { data } = await api.get('/api/moderacao/bloqueios');
     return data.data ?? [];
+  },
+
+  /** Só liderança. O servidor recusa com 403 para os demais. */
+  async listarDenuncias(): Promise<{ data: Denuncia[]; total: number }> {
+    const { data } = await api.get('/api/moderacao/denuncias');
+    return { data: data.data ?? [], total: data.total ?? 0 };
+  },
+
+  async resolverDenuncia(id: number): Promise<void> {
+    await api.patch(`/api/moderacao/denuncias/${id}/resolver`);
   },
 };

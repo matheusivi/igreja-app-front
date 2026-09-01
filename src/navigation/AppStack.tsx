@@ -21,6 +21,7 @@ import { PlanoLeituraScreen } from '../screens/leitura/PlanoLeituraScreen';
 import { ProfissionaisScreen } from '../screens/comunidade/ProfissionaisScreen';
 import { AparenciaHomeScreen } from '../screens/lideranca/AparenciaHomeScreen';
 import { SalaParticipantesScreen } from '../screens/lideranca/SalaParticipantesScreen';
+import { DenunciasScreen } from '../screens/lideranca/DenunciasScreen';
 import { BloqueadosScreen } from '../screens/perfil/BloqueadosScreen';
 import { ExcluirContaScreen } from '../screens/perfil/ExcluirContaScreen';
 import { MainTabs } from './MainTabs';
@@ -67,6 +68,7 @@ export function AppStack() {
           cria conta precisa conseguir apagá-la de dentro do app. */}
       <Stack.Screen name="Bloqueados" component={BloqueadosScreen} />
       <Stack.Screen name="ExcluirConta" component={ExcluirContaScreen} />
+      <Stack.Screen name="Denuncias" component={DenunciasScreen} />
     </Stack.Navigator>
   );
 }

@@ -7,6 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Chip } from '../../components';
 import { useHistoricoMatriculas } from '../../hooks/queries/useCursos';
 import { useMeusGrupos } from '../../hooks/queries/useGrupos';
+import {
+  useBloqueados,
+  useDenunciasPendentes,
+} from '../../hooks/queries/useModeracao';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../../navigation/AuthContext';
@@ -27,6 +31,21 @@ export function ProfileScreen() {
   const colors = useThemeColors();
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const { user, signOut } = useAuth();
+
+  const ehLideranca = ['Líder', 'Pastor', 'Administrador'].includes(
+    user?.perfil ?? '',
+  );
+
+  /**
+   * Duas contagens que decidem se certas entradas do menu existem.
+   *
+   * A de bloqueados é compartilhada com a tela de bloqueados pelo cache do
+   * TanStack Query — uma requisição serve às duas. A de denúncias só dispara
+   * para quem tem cargo; membro comum não gasta uma ida à rede para receber
+   * 403.
+   */
+  const { quantidade: quantidadeBloqueados } = useBloqueados();
+  const { total: denunciasPendentes } = useDenunciasPendentes(ehLideranca);
 
   /** A cara da igreja é decisão de quem responde por ela. Líder fica fora. */
   /**
@@ -339,20 +358,69 @@ export function ProfileScreen() {
                 color={isDark ? colors.gold : colors.outline}
               />
             </Pressable>
-            <View className="h-px bg-outline-variant" />
-            {/* Quem a pessoa escolheu não ver no mural. Fica aqui, e não
-                escondido em alguma tela de ajuda: as lojas exigem que bloquear
-                seja reversível num lugar que dê para achar. */}
-            <Pressable
-              className="flex-row items-center justify-between px-4 py-3"
-              onPress={() => navigation.navigate('Bloqueados')}
-            >
-              <View className="flex-row items-center gap-3">
-                <Ionicons name="eye-off-outline" size={18} color={colors.secondary} />
-                <Text className="font-sans text-sm text-ink">Pessoas bloqueadas</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.outline} />
-            </Pressable>
+            {/*
+              ═══ APARECE SÓ PARA QUEM JÁ BLOQUEOU ALGUÉM ═══
+              Numa igreja, uma linha permanente escrita "Pessoas bloqueadas"
+              sugere conflito onde não há. Quem nunca bloqueou ninguém — que
+              vai ser quase todo mundo — não precisa ver essa palavra toda vez
+              que abre o perfil.
+
+              A exigência das lojas é que bloquear seja REVERSÍVEL e que o
+              caminho exista. Ele existe: aparece no instante em que passa a
+              fazer sentido, e o aviso mostrado ao bloquear já diz onde
+              encontrá-lo.
+            */}
+            {quantidadeBloqueados > 0 ? (
+              <>
+                <View className="h-px bg-outline-variant" />
+                <Pressable
+                  className="flex-row items-center justify-between px-4 py-3"
+                  onPress={() => navigation.navigate('Bloqueados')}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <Ionicons name="eye-off-outline" size={18} color={colors.secondary} />
+                    <Text className="font-sans text-sm text-ink">
+                      Pessoas bloqueadas
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center gap-2">
+                    <Text className="font-sans text-sm text-ink-muted">
+                      {quantidadeBloqueados}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+                  </View>
+                </Pressable>
+              </>
+            ) : null}
+
+            {/*
+              A fila de denúncias. Só liderança, e o número em vermelho porque
+              a Apple exige resposta em 24 horas — um contador discreto não
+              comunicaria a urgência.
+            */}
+            {ehLideranca ? (
+              <>
+                <View className="h-px bg-outline-variant" />
+                <Pressable
+                  className="flex-row items-center justify-between px-4 py-3"
+                  onPress={() => navigation.navigate('Denuncias')}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <Ionicons name="flag-outline" size={18} color={colors.secondary} />
+                    <Text className="font-sans text-sm text-ink">Denúncias</Text>
+                  </View>
+                  <View className="flex-row items-center gap-2">
+                    {denunciasPendentes > 0 ? (
+                      <Text className="font-sans-semibold text-sm text-error">
+                        {denunciasPendentes}
+                      </Text>
+                    ) : null}
+                    <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+                  </View>
+                </Pressable>
+              </>
+            ) : null}
+
             <View className="h-px bg-outline-variant" />
             <Pressable
               className="flex-row items-center justify-between px-4 py-3"
