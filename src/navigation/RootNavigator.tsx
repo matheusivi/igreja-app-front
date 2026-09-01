@@ -1,20 +1,37 @@
-import { ActivityIndicator, View } from 'react-native';
+import { useCallback, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { useThemeColors } from '../hooks/useThemeColors';
+import { TelaDeAbertura } from '../components/TelaDeAbertura';
 import { AppStack } from './AppStack';
 import { AuthProvider, useAuth } from './AuthContext';
 import { AuthStack } from './AuthStack';
 
 function RootSwitch() {
-  const colors = useThemeColors();
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator size="large" color={colors.gold} />
-      </View>
-    );
+  /**
+   * ═══ A ABERTURA ESPERA DUAS COISAS ═══
+   * Que o app tenha carregado E que a animação tenha terminado.
+   *
+   * Só o carregamento não basta: quem já entrou uma vez tem a sessão guardada
+   * no aparelho, e isso resolve em milissegundos. A frase seria cortada na
+   * segunda palavra — pior do que não existir, porque piscaria.
+   *
+   * E só a animação também não: numa rede ruim, o carregamento pode passar do
+   * tempo dela, e aí a tela precisa continuar até haver o que mostrar.
+   *
+   * Quem terminar por último manda. Na prática, quase sempre é a animação —
+   * que é exatamente o objetivo: transformar a espera técnica em algo com
+   * intenção, em vez de disfarçá-la.
+   */
+  const [aberturaConcluida, setAberturaConcluida] = useState(false);
+
+  // `useCallback` porque a `TelaDeAbertura` usa esta função dentro de um
+  // `useEffect`. Recriada a cada render, ela reiniciaria o cronômetro sem
+  // parar, e a animação nunca chegaria ao fim.
+  const concluirAbertura = useCallback(() => setAberturaConcluida(true), []);
+
+  if (isLoading || !aberturaConcluida) {
+    return <TelaDeAbertura aoTerminar={concluirAbertura} />;
   }
 
   return isAuthenticated ? <AppStack /> : <AuthStack />;

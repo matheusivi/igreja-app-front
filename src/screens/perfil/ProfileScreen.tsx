@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Chip } from '../../components';
 import { useHistoricoMatriculas } from '../../hooks/queries/useCursos';
@@ -18,7 +18,7 @@ import { useTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../../navigation/AuthContext';
 import type { AppStackParamList } from '../../navigation/types';
 import { API_BASE_URL } from '../../config';
-import { NOME_IGREJA } from '../../constants/igreja';
+import { NOME_IGREJA, PAGINAS } from '../../constants/igreja';
 import { getCriadorNome } from '../../services/groups.service';
 import { urlImagem } from '../../services/imagem';
 import { rotuloProfissao } from '../../services/profissoes';
@@ -472,8 +472,27 @@ export function ProfileScreen() {
             procura, e invisível para quem não está procurando. As lojas exigem
             que exista e que dê para achar; não exigem que compita por atenção.
           */}
+          {/*
+            Os documentos ficam aqui para quem JÁ tem conta poder reler. Na
+            tela de cadastro eles aparecem antes de aceitar; depois disso, o
+            Perfil é o único lugar onde a pessoa pensaria em procurar.
+          */}
+          <View className="flex-row items-center justify-center gap-2 pt-4">
+            <Pressable onPress={() => void Linking.openURL(PAGINAS.privacidade)} hitSlop={8}>
+              <Text className="font-sans text-[13px] text-ink-muted underline">
+                Privacidade
+              </Text>
+            </Pressable>
+            <Text className="font-sans text-[13px] text-ink-muted">·</Text>
+            <Pressable onPress={() => void Linking.openURL(PAGINAS.termos)} hitSlop={8}>
+              <Text className="font-sans text-[13px] text-ink-muted underline">
+                Termos de Uso
+              </Text>
+            </Pressable>
+          </View>
+
           <Pressable
-            className="items-center py-4"
+            className="items-center py-3"
             onPress={() => navigation.navigate('ExcluirConta')}
             hitSlop={8}
           >

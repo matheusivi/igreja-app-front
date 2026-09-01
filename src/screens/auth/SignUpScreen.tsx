@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import { Button, Chip, RequisitosSenha, avaliarSenha, senhaValida, TextField } from '../../components';
 import { useThemeColors } from '../../hooks/useThemeColors';
-import { NOME_IGREJA } from '../../constants/igreja';
+import { NOME_IGREJA, PAGINAS } from '../../constants/igreja';
 import { useAuth } from '../../navigation/AuthContext';
 import type { AuthStackParamList } from '../../navigation/types';
 import { extractErrorMessage } from '../../services/api';
@@ -116,6 +116,18 @@ export function SignUpScreen({ navigation }: Props) {
         onChangeText={(v) => { setConfirmPassword(v); setError(null); }}
       />
 
+      {/*
+        ═══ OS DOIS DOCUMENTOS VIRARAM LINKS DE VERDADE ═══
+        Antes esta linha era texto comum: a pessoa marcava "concordo" com
+        documentos que não tinha como abrir. Além de ser o tipo de coisa que
+        as lojas reparam, é simplesmente desonesto pedir concordância com algo
+        ilegível.
+
+        A caixa continua sendo o alvo grande; só as duas palavras abrem o
+        navegador. `stopPropagation` impede que tocar no link também marque ou
+        desmarque a caixa — sem isso, quem fosse ler os termos marcaria o
+        "concordo" sem querer no mesmo toque.
+      */}
       <Pressable
         className="flex-row items-start gap-2"
         onPress={() => setAcceptedTerms((v) => !v)}
@@ -127,7 +139,27 @@ export function SignUpScreen({ navigation }: Props) {
           color={acceptedTerms ? colors.gold : colors.outline}
         />
         <Text className="flex-1 font-sans text-sm leading-5 text-ink-muted">
-          {`Concordo com os Termos de Uso e a Política de Privacidade da ${NOME_IGREJA}.`}
+          Concordo com os{' '}
+          <Text
+            className="font-sans-semibold text-secondary underline"
+            onPress={(e) => {
+              e.stopPropagation();
+              void Linking.openURL(PAGINAS.termos);
+            }}
+          >
+            Termos de Uso
+          </Text>
+          {' e a '}
+          <Text
+            className="font-sans-semibold text-secondary underline"
+            onPress={(e) => {
+              e.stopPropagation();
+              void Linking.openURL(PAGINAS.privacidade);
+            }}
+          >
+            Política de Privacidade
+          </Text>
+          {` da ${NOME_IGREJA}.`}
         </Text>
       </Pressable>
 

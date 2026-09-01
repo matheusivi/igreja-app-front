@@ -26,6 +26,27 @@
 export const NOME_IGREJA = 'Família IBVI';
 
 /**
+ * A frase da tela de abertura, revelada palavra por palavra.
+ *
+ * ═══ POR QUE UM ARRAY, E NÃO UMA STRING ═══
+ * A animação entra uma palavra de cada vez, e o array é o que define o ritmo:
+ * cada item é um tempo. Fosse uma string, a tela teria que decidir sozinha
+ * onde quebrar — e "de" e "milagre" apareceriam separados por um espaço que
+ * ninguém escolheu.
+ *
+ * Assim quem trocar a frase controla a cadência. Quatro ou cinco palavras é o
+ * limite confortável: mais que isso, a abertura demora mais do que o app leva
+ * para carregar, e o que era acolhida vira espera.
+ */
+export const FRASE_ABERTURA = [
+  'Expectativa',
+  'gera',
+  'ambiente',
+  'de',
+  'milagre',
+] as const;
+
+/**
  * Chave PIX para onde vão as ofertas.
  *
  * ⚠️  CONFIRA ANTES DE PUBLICAR PARA OUTRA IGREJA.
@@ -37,4 +58,26 @@ export const NOME_IGREJA = 'Família IBVI';
 export const PIX = {
   tipo: 'CNPJ' as 'CNPJ' | 'CPF' | 'Telefone' | 'E-mail' | 'Aleatória',
   valor: '13479086000129',
+} as const;
+
+/**
+ * Documentos públicos da igreja, servidos pelo mesmo servidor da API.
+ *
+ * ═══ POR QUE PÁGINAS NA WEB, E NÃO TELAS DO APP ═══
+ * Precisam ter endereço próprio por três motivos que uma tela não atende:
+ *
+ * 1. A Play Console pede a URL da política num campo, e a da exclusão de conta
+ *    em outro. Não há como colar uma tela num formulário.
+ * 2. Quem já DESINSTALOU o app precisa poder pedir a exclusão da conta — e não
+ *    tem mais tela nenhuma.
+ * 3. Documento com endereço fixo pode ser corrigido sem publicar versão nova.
+ *
+ * ⚠️  Ao adaptar para outra igreja, estes três endereços mudam junto com o
+ * servidor. Eles vivem aqui, e não espalhados pelas telas, pelo mesmo motivo
+ * do nome e da chave PIX.
+ */
+export const PAGINAS = {
+  privacidade: 'https://ibvi.novafeira.com.br/privacidade',
+  termos: 'https://ibvi.novafeira.com.br/termos',
+  excluirConta: 'https://ibvi.novafeira.com.br/excluir-conta',
 } as const;

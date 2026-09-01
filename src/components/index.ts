@@ -40,3 +40,4 @@ export { SectionHeader } from './SectionHeader';
 export { TextField } from './TextField';
 export { TopBar } from './TopBar';
 export { VersiculoDoDia } from './VersiculoDoDia';
+export { TelaDeAbertura } from './TelaDeAbertura';
