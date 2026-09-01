@@ -1,50 +1,62 @@
 import { useEffect } from 'react';
-import { View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
+import { Image, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { FRASE_ABERTURA, NOME_IGREJA } from '../constants/igreja';
-import { MenorahMark } from './MenorahMark';
+import { useThemeColors } from '../hooks/useThemeColors';
 
 /**
  * ╔═══════════════════════════════════════════════════════════════════════╗
  * ║  A TELA DE ABERTURA                                                   ║
  * ╚═══════════════════════════════════════════════════════════════════════╝
  *
- * Antes eram três segundos de uma rodinha girando. Funcional e mudo.
+ * ═══ POR QUE ELA IMITA A TELA NATIVA ═══
+ * O Android mostra uma tela sua antes de o JavaScript existir — não há como
+ * evitar, é o sistema preenchendo o intervalo entre tocar no ícone e o app
+ * carregar. Depois dela vem esta, e a troca aparecia como um piscar de duas
+ * telas diferentes.
+ *
+ * A solução não é remover uma: é fazer as duas serem a MESMA imagem. A tela
+ * nativa (configurada em `app.json`) mostra a menorá na cor primária, no mesmo
+ * fundo e no mesmo tamanho com que ela nasce aqui. Quando o JavaScript assume,
+ * o desenho já está na tela e não se mexe — só a frase começa a aparecer
+ * embaixo dele.
+ *
+ * ⚠️  Mudar o tamanho ou a cor aqui exige mudar o `imageWidth` e o
+ * `backgroundColor` no `app.json` junto. Divergiram, volta o piscar.
  *
  * ═══ POR QUE A FRASE APARECE PALAVRA POR PALAVRA ═══
- * Escrita de uma vez, ela seria só um texto no meio da tela — o olho lê em
- * meio segundo e sobra espera. Revelada aos poucos, o tempo de carregamento
- * vira o tempo da frase: em vez de esperar o app, a pessoa acompanha uma ideia
- * sendo dita.
+ * Escrita de uma vez, o olho a lê em meio segundo e o resto vira espera.
+ * Revelada aos poucos, o tempo de carregamento vira o tempo da frase: em vez
+ * de esperar o app, a pessoa acompanha uma ideia sendo dita.
  *
- * É o mesmo intervalo. O que muda é o que ele significa.
- *
- * ═══ POR QUE UM TEMPO MÍNIMO ═══
- * Quem já entrou uma vez tem a sessão guardada no aparelho, e o carregamento
- * dura milissegundos. Sem o mínimo, a frase seria cortada no meio quase
- * sempre — pior do que não existir, porque piscaria.
- *
- * `DURACAO_MINIMA` é calculado a partir da própria frase: acrescentar uma
- * palavra em `FRASE_ABERTURA` estica a abertura sozinho, sem ninguém precisar
- * lembrar de ajustar um número aqui.
+ * O movimento é só opacidade — sem subir, sem saltar. Palavra que entra
+ * deslizando chama atenção para si; aqui ela deve chamar atenção para o que
+ * está escrito.
  */
 
-/** Quando a menorá começa a aparecer. */
-const ATRASO_MARCA = 120;
+/** Precisa bater com `imageWidth` do expo-splash-screen no `app.json`. */
+const LARGURA_MARCA = 190;
+
+/** Proporção do arquivo: 560 × 436. */
+const PROPORCAO_MARCA = 560 / 436;
 
 /** Quanto tempo entre uma palavra e a seguinte. */
-const INTERVALO_PALAVRA = 170;
+const INTERVALO_PALAVRA = 200;
 
-/** Quando a primeira palavra entra — depois da marca ter se assentado. */
-const ATRASO_PRIMEIRA_PALAVRA = 620;
+/** Quando a primeira palavra entra. */
+const ATRASO_PRIMEIRA_PALAVRA = 420;
+
+/** Cada palavra leva este tempo para surgir por completo. */
+const DURACAO_PALAVRA = 620;
 
 /** Respiro depois da última palavra, antes de abrir o app. */
-const RESPIRO_FINAL = 520;
+const RESPIRO_FINAL = 620;
 
 const DURACAO_MINIMA =
   ATRASO_PRIMEIRA_PALAVRA +
-  FRASE_ABERTURA.length * INTERVALO_PALAVRA +
+  (FRASE_ABERTURA.length - 1) * INTERVALO_PALAVRA +
+  DURACAO_PALAVRA +
   RESPIRO_FINAL;
 
 type Props = {
@@ -53,6 +65,8 @@ type Props = {
 };
 
 export function TelaDeAbertura({ aoTerminar }: Props) {
+  const colors = useThemeColors();
+
   useEffect(() => {
     const t = setTimeout(aoTerminar, DURACAO_MINIMA);
     return () => clearTimeout(t);
@@ -62,70 +76,62 @@ export function TelaDeAbertura({ aoTerminar }: Props) {
     <Animated.View
       // A saída é do container inteiro: a tela toda se dissolve na do app, em
       // vez de os elementos sumirem um a um. Fim de cena, não desmontagem.
-      exiting={FadeOut.duration(320)}
-      className="flex-1 items-center justify-center gap-xl bg-background"
+      exiting={FadeOut.duration(380)}
+      className="flex-1 items-center justify-center bg-background"
     >
-      <Animated.View
-        // A marca cresce um pouco ao entrar. Sutil de propósito: precisa
-        // parecer que ela se acomodou, não que saltou.
-        entering={FadeIn.delay(ATRASO_MARCA).duration(560)}
-      >
-        <MenorahMark size={96} />
-      </Animated.View>
+      {/*
+        SEM animação de entrada, de propósito. Esta imagem é a continuação
+        exata da tela nativa — ela já estava ali. Fazê-la aparecer de novo
+        anunciaria justamente a troca que queremos esconder.
+      */}
+      <Image
+        source={require('../../assets/splash-icon.png')}
+        style={{
+          width: LARGURA_MARCA,
+          height: LARGURA_MARCA / PROPORCAO_MARCA,
+          // O arquivo é uma silhueta; a cor vem do tema. Um só desenho serve
+          // ao claro e ao escuro.
+          tintColor: colors.primary,
+        }}
+        resizeMode="contain"
+        accessible={false}
+      />
 
       <Animated.Text
-        entering={FadeIn.delay(ATRASO_MARCA + 220).duration(480)}
-        className="font-sans-semibold text-xs uppercase tracking-wide text-ink-muted"
+        entering={FadeIn.delay(200).duration(600)}
+        className="mt-lg font-sans-semibold text-xs uppercase tracking-wide text-ink-muted"
       >
         {NOME_IGREJA}
       </Animated.Text>
 
       {/*
-        ═══ A FRASE ═══
-        Serifada e grande, porque é a única coisa aqui para ser LIDA — o resto
-        é identidade. `flex-wrap` deixa a linha quebrar sozinha em aparelho
-        estreito, sem que ninguém precise decidir onde.
-      */}
-      {/*
         ═══ ACESSIBILIDADE: A FRASE É UMA SÓ ═══
-        Para o leitor de tela, o container inteiro é UM texto — a frase
-        completa. Sem isso ele anunciaria cinco fragmentos soltos, com pausa
-        entre cada um, enquanto eles ainda estão aparecendo. A quebra em
-        palavras é recurso visual; ninguém precisa ouvi-la.
+        Para o leitor de tela, este bloco é UM texto. Sem isso ele anunciaria
+        cinco fragmentos soltos, com pausa entre cada um, enquanto ainda
+        aparecem. A quebra em palavras é recurso visual; ninguém precisa
+        ouvi-la.
       */}
       <View
         accessible
         accessibilityRole="text"
         accessibilityLabel={FRASE_ABERTURA.join(' ')}
-        className="max-w-[300px] flex-row flex-wrap justify-center px-gutter"
+        className="mt-md max-w-[320px] flex-row flex-wrap justify-center px-gutter"
       >
         {FRASE_ABERTURA.map((palavra, i) => (
           <Animated.Text
             key={palavra + i}
-            // Cada palavra sobe um pouco ao entrar, na ordem da leitura.
-            // O atraso crescente é o que cria o ritmo de fala.
-            entering={FadeInDown.delay(
+            // Só opacidade, e devagar. O atraso crescente cria a cadência de
+            // fala sem que nada se desloque na tela.
+            entering={FadeIn.delay(
               ATRASO_PRIMEIRA_PALAVRA + i * INTERVALO_PALAVRA,
-            )
-              .duration(420)
-              .springify()
-              .damping(18)}
-            className="font-serif text-[22px] leading-8 text-ink"
+            ).duration(DURACAO_PALAVRA)}
+            className="font-serif text-[21px] leading-8 text-ink"
           >
             {palavra}
             {i < FRASE_ABERTURA.length - 1 ? ' ' : ''}
           </Animated.Text>
         ))}
       </View>
-
-      {/*
-        Sem indicador de carregamento. A frase já ocupa a espera, e uma rodinha
-        girando ao lado dela diria "aguarde" bem no momento em que se está
-        tentando dizer outra coisa.
-
-        Se um dia o carregamento passar de uns quatro segundos — servidor fora
-        do ar, rede ruim —, aí vale acrescentar um sinal. Hoje não passa.
-      */}
     </Animated.View>
   );
 }
