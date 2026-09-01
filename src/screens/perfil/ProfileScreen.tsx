@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
@@ -15,6 +17,8 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../../navigation/AuthContext';
 import type { AppStackParamList } from '../../navigation/types';
+import { API_BASE_URL } from '../../config';
+import { NOME_IGREJA } from '../../constants/igreja';
 import { getCriadorNome } from '../../services/groups.service';
 import { urlImagem } from '../../services/imagem';
 import { rotuloProfissao } from '../../services/profissoes';
@@ -46,6 +50,30 @@ export function ProfileScreen() {
    */
   const { quantidade: quantidadeBloqueados } = useBloqueados();
   const { total: denunciasPendentes } = useDenunciasPendentes(ehLideranca);
+
+  /**
+   * ═══ DE ONDE VEIO O CÓDIGO QUE ESTÁ RODANDO ═══
+   * `isEmbeddedLaunch` é verdadeiro quando o app roda o pacote que veio dentro
+   * do APK, e falso quando roda uma atualização baixada pelo ar.
+   *
+   * É a informação que faltou hoje: sem ela não havia como distinguir "a
+   * atualização não chegou" de "a atualização chegou e tem um defeito". São
+   * dois problemas opostos que se parecem por fora.
+   *
+   * Os 8 primeiros caracteres do id bastam para identificar qual atualização
+   * é, e cabem na linha.
+   */
+  const versaoApp = Constants.expoConfig?.version ?? '?';
+  const origemDoCodigo = Updates.isEmbeddedLaunch
+    ? 'instalado'
+    : `atualização ${Updates.updateId?.slice(0, 8) ?? 'desconhecida'}`;
+
+  /**
+   * Só o domínio, sem `https://` nem caminho. É o suficiente para saber se o
+   * app está falando com o servidor certo, e não vira uma linha comprida
+   * atravessando a tela.
+   */
+  const servidorVisivel = API_BASE_URL.replace(/^https?:\/\//, '');
 
   /** A cara da igreja é decisão de quem responde por ela. Líder fica fora. */
   /**
@@ -453,6 +481,28 @@ export function ProfileScreen() {
               Excluir minha conta
             </Text>
           </Pressable>
+
+          {/*
+            ═══ A LINHA DE VERSÃO ═══
+            Nasceu de uma dor concreta: o app parou de falar com o servidor e
+            passamos horas sem conseguir responder duas perguntas básicas —
+            "qual endereço ele está chamando?" e "esta é a versão nova ou a
+            antiga?". Sem isso, todo diagnóstico virava adivinhação.
+
+            Vale para sempre, não só agora. Quando um membro disser "não está
+            funcionando", esta linha responde o que ele não saberia explicar.
+            É o mesmo motivo pelo qual todo app sério tem um "Sobre".
+
+            Discreta de propósito: quem não procura não vê.
+          */}
+          <View className="items-center pb-2">
+            <Text className="font-sans text-[11px] text-ink-muted">
+              {NOME_IGREJA} · v{versaoApp} · {origemDoCodigo}
+            </Text>
+            <Text className="font-sans text-[11px] text-ink-muted">
+              {servidorVisivel}
+            </Text>
+          </View>
         </View>
         {/* A barra de abas flutua sobre o conteúdo, fora do fluxo do layout.
             Sem este espaço, o último item da lista fica permanentemente

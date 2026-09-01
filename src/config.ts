@@ -1,44 +1,49 @@
 import Constants from 'expo-constants';
 
-/** Porta em que o backend (`igreja-app-backend`) está rodando. */
+/** Porta em que o backend roda na máquina de desenvolvimento. */
 const PORTA_BACKEND = 3000;
 
 /**
- * Usado quando não dá para descobrir o IP sozinho (build de produção, por
- * exemplo). Em desenvolvimento isso quase nunca é lido.
- */
-const FALLBACK = `http://255.255.255.0:${PORTA_BACKEND}`;
-
-/**
  * ╔═══════════════════════════════════════════════════════════════════════╗
- * ║  EM PRODUÇÃO, SÓ HTTPS. SEM EXCEÇÃO.                                  ║
+ * ║  ENDEREÇO DO SERVIDOR DA IGREJA                                       ║
  * ╚═══════════════════════════════════════════════════════════════════════╝
  *
- * ═══ O QUE ESTAVA ABERTO ═══
- * A URL vinha de `EXPO_PUBLIC_API_URL` e era usada como chegasse. Se no dia do
- * build essa variável saísse com `http://` — por pressa, por copiar do
- * ambiente local, por o certificado ainda não estar pronto —, o app publicado
- * mandaria E-MAIL, SENHA E O TOKEN DE SESSÃO em texto puro. No Wi-Fi da
- * igreja, qualquer aparelho na mesma rede lê isso sem esforço.
+ * ⚠️  Para outra igreja, é AQUI que se troca. Junto com `constants/igreja.ts`,
+ * é a segunda coisa específica desta congregação.
  *
- * O que torna isso perigoso não é a chance de acontecer: é que, se
- * acontecesse, TUDO FUNCIONARIA. A pessoa entra, o app abre, ninguém
- * desconfia. Um erro que não se manifesta é um erro que fica.
+ * ═══ POR QUE ESTE VALOR ESTÁ NO CÓDIGO, E NÃO SÓ NUMA VARIÁVEL ═══
+ * Estava só em `eas.json` e depois em `.env.production`. As duas formas
+ * funcionam — até o dia em que uma não funciona.
  *
- * ═══ POR QUE PROMOVER, E NÃO AVISAR ═══
- * Um aviso em log ninguém lê num app publicado. Derrubar o app com erro na
- * abertura puniria a congregação por um erro de configuração meu.
+ * E aconteceu: a documentação da Expo diz que variáveis do campo `env` dos
+ * perfis de build NÃO valem no `eas update`. A atualização OTA saiu sem
+ * endereço, caiu no valor de emergência — que era `255.255.255.0`, um endereço
+ * inexistente — e o app inteiro parou de falar com o servidor. Telas novas
+ * chegaram, dados não.
  *
- * Promover para `https://` faz o app FALHAR FECHADO: se o servidor tiver TLS,
- * funciona e o vazamento nunca existiu; se não tiver, a conexão não completa e
- * o erro aparece — no build do canal `teste`, antes de chegar em produção.
- * Entre "vaza em silêncio" e "não conecta com barulho", o segundo é sempre o
- * lado certo de errar.
+ * A lição não é "arrume a variável". É que **o caminho de emergência precisa
+ * ser o caminho certo**. Um valor padrão que garantidamente não funciona só
+ * serve para transformar um esquecimento em pane silenciosa.
  *
- * ═══ DESENVOLVIMENTO CONTINUA EM HTTP ═══
- * O Metro serve por IP de rede local, sem certificado. Exigir HTTPS aqui
- * inviabilizaria rodar o projeto. `__DEV__` é falso em qualquer build de
- * release, então a trava vale exatamente onde precisa valer.
+ * Este endereço não é segredo: qualquer pessoa o descobre olhando o tráfego do
+ * app. Não há nada a proteger deixando-o fora do código — só há o que perder.
+ */
+const SERVIDOR_DA_IGREJA = 'https://ibvi.novafeira.com.br';
+
+/**
+ * Em produção, só HTTPS.
+ *
+ * Se o endereço vier com `http://` — por variável mal preenchida, por
+ * descuido —, o app publicado mandaria e-mail, senha e token de sessão em
+ * texto puro. No Wi-Fi da igreja, qualquer aparelho na mesma rede leria.
+ *
+ * O perigo não é a chance de acontecer: é que, acontecendo, TUDO FUNCIONARIA.
+ * Ninguém desconfiaria. Promover para `https` faz falhar fechado — se o
+ * servidor tiver TLS, funciona; se não tiver, a conexão não completa e o erro
+ * aparece no teste, não no vazamento.
+ *
+ * Desenvolvimento continua em HTTP: o Metro serve por IP local, sem
+ * certificado. `__DEV__` é falso em qualquer build de release.
  */
 function exigirHttpsEmProducao(url: string): string {
   if (__DEV__) return url;
@@ -46,27 +51,35 @@ function exigirHttpsEmProducao(url: string): string {
 }
 
 /**
- * Descobre sozinho o IP da máquina que está rodando o Metro.
+ * Decide com qual servidor falar, em três degraus.
  *
- * O `hostUri` vem no formato "192.168.0.15:8081" — é o endereço que o próprio
- * Expo Go usou para baixar o bundle, ou seja, comprovadamente alcançável a
- * partir do celular. Como o backend roda na mesma máquina, basta trocar a porta.
- *
- * Antes o IP era uma constante escrita à mão: trocar de rede (casa, igreja,
- * roteador renovando DHCP) quebrava o app inteiro, e o sintoma que aparecia na
- * tela era "e-mail ou senha incorretos".
+ *   1. `EXPO_PUBLIC_API_URL`  — permite apontar para outro servidor sem mexer
+ *                               no código (um ambiente de homologação, por
+ *                               exemplo). Continua sendo o primeiro da fila.
+ *   2. O IP do Metro          — só em desenvolvimento. Descobre sozinho o
+ *                               endereço da sua máquina na rede, então trocar
+ *                               de Wi-Fi não quebra mais nada.
+ *   3. O servidor da igreja   — o padrão. Onde o app publicado sempre chega.
  */
 function descobrirBaseUrl(): string {
-  // Prioridade 1: variável de ambiente. Vai ser necessária quando o backend
-  // subir para a VPS, já que aí ele não fica mais na máquina do Metro.
   const daEnv = process.env.EXPO_PUBLIC_API_URL;
   if (daEnv) return daEnv;
 
-  // Prioridade 2: IP do servidor de desenvolvimento.
-  const host = Constants.expoConfig?.hostUri?.split(':')[0];
-  if (host) return `http://${host}:${PORTA_BACKEND}`;
+  /**
+   * `hostUri` é o endereço que o Expo Go usou para baixar o bundle — ou seja,
+   * comprovadamente alcançável a partir do celular. Como o backend roda na
+   * mesma máquina, basta trocar a porta.
+   *
+   * O `__DEV__` na condição é o que impede um build de produção de tentar
+   * isso: lá `hostUri` normalmente não existe, mas se existisse, o app
+   * apontaria para a máquina de alguém em vez do servidor da igreja.
+   */
+  if (__DEV__) {
+    const host = Constants.expoConfig?.hostUri?.split(':')[0];
+    if (host) return `http://${host}:${PORTA_BACKEND}`;
+  }
 
-  return FALLBACK;
+  return SERVIDOR_DA_IGREJA;
 }
 
 export const API_BASE_URL = exigirHttpsEmProducao(descobrirBaseUrl());
