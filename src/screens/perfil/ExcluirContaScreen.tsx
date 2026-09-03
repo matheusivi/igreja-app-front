@@ -73,7 +73,7 @@ export function ExcluirContaScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <ScreenHeader
         title="Excluir minha conta"
         onBack={() => navigation.goBack()}

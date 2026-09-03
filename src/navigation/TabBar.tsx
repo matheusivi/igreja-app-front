@@ -110,6 +110,34 @@ export function useAlturaTabBar() {
 }
 
 /** Último filho da rolagem em toda tela de aba. */
+/**
+ * ╔═══════════════════════════════════════════════════════════════════════╗
+ * ║  A REGRA DA BORDA DE BAIXO — vale para TODA tela nova                 ║
+ * ╚═══════════════════════════════════════════════════════════════════════╝
+ *
+ * Existem dois arranjos, e usar o errado esconde conteúdo atrás da barra de
+ * navegação do Android. Aconteceu em VINTE E QUATRO telas de uma vez, e só foi
+ * notado quando o botão "Salvar alterações" apareceu cortado pela metade.
+ *
+ *   TELA COM ABAS (Home, Ensino, Oração, Perfil…)
+ *     <SafeAreaView edges={['top']}>
+ *     ...e <EspacoTabBar /> como ÚLTIMO item do ScrollView.
+ *
+ *     A barra de abas flutua sobre o conteúdo, fora do fluxo do layout. Quem
+ *     reserva o espaço dela é este componente. Pedir `bottom` ao SafeAreaView
+ *     aqui somaria os dois e abriria um vão embaixo.
+ *
+ *   TELA EMPILHADA (qualquer uma aberta por navigation.navigate)
+ *     <SafeAreaView edges={['top', 'bottom']}>
+ *
+ *     Não há barra de abas, então não há nada reservando a borda inferior. Sem
+ *     o `bottom`, o último elemento fica atrás dos botões do sistema — e em
+ *     tela de formulário esse último elemento costuma ser justamente o botão
+ *     de salvar.
+ *
+ * O jeito de conferir numa tela nova: ela tem `<EspacoTabBar />`? Se sim, só
+ * `top`. Se não, `top` e `bottom`.
+ */
 export function EspacoTabBar() {
   const altura = useAlturaTabBar();
   return <View style={{ height: altura }} />;

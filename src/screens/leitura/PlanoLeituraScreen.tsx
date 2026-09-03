@@ -91,7 +91,7 @@ export function PlanoLeituraScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <TopBar title="Plano de leitura" onBack={() => navigation.goBack()} />
 
       {carregando ? (

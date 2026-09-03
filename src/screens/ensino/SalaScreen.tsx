@@ -28,7 +28,7 @@ export function SalaScreen({ route, navigation }: Props) {
   const error = queryError ? extractErrorMessage(queryError) : null;
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <TopBar title={`Sala — ${cursoNome}`} onBack={() => navigation.goBack()} />
 
       {isLoading ? (

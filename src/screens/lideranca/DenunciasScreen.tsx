@@ -97,7 +97,7 @@ export function DenunciasScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <ScreenHeader
         title="Denúncias"
         subtitle={

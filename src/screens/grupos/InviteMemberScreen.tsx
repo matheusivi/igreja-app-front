@@ -78,7 +78,7 @@ export function InviteMemberScreen({ route, navigation }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <TopBar title="Convidar para a família" onBack={() => navigation.goBack()} />
 
       <ScrollView

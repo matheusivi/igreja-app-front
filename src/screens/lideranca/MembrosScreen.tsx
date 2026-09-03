@@ -90,7 +90,7 @@ export function MembrosScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <TopBar title="Liderança" onBack={() => navigation.goBack()} />
 
       <ScrollView

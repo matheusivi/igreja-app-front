@@ -70,7 +70,7 @@ export function ProfissionaisScreen({ navigation }: Props) {
   } = useProfissionais(busca);
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <TopBar title="Trabalhos da comunidade" onBack={() => navigation.goBack()} />
 
       <FlatList

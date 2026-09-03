@@ -188,7 +188,7 @@ export function CreateConteudoScreen({ route, navigation }: Props) {
   const pendencia = faltando();
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <TopBar
         title={isEditing ? 'Editar publicação' : 'Nova publicação'}
         onBack={() => navigation.goBack()}

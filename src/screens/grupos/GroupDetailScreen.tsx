@@ -142,7 +142,7 @@ export function GroupDetailScreen({ route, navigation }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <TopBar
         title={grupo?.nome ? `Família ${grupo.nome}` : 'Detalhes da Família'}
         onBack={() => navigation.goBack()}

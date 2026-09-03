@@ -132,7 +132,7 @@ export function DevotionalsListScreen() {
   const criar = () => navigation.navigate('CreateConteudo', { tipo: 'Devocional' });
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <ScreenHeader
         title="Devocionais"
         subtitle={resumo}

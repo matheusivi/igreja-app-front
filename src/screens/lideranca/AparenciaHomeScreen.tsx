@@ -96,7 +96,7 @@ export function AparenciaHomeScreen({ navigation }: Props) {
 
   if (isPending) {
     return (
-      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <TopBar title="Aparência da tela inicial" onBack={() => navigation.goBack()} />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary} />
@@ -106,7 +106,7 @@ export function AparenciaHomeScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <TopBar title="Aparência da tela inicial" onBack={() => navigation.goBack()} />
 
       <ScrollView

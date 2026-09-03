@@ -146,7 +146,7 @@ export function EditProfileScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <View className="flex-row items-center justify-between border-b border-outline-variant px-gutter py-3">
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
           <Ionicons name="arrow-back" size={22} color={colors.primary} />

@@ -263,7 +263,7 @@ export function CourseDetailScreen({ route, navigation }: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       {/* Barra sem título: o nome do curso abre o conteúdo em 30px, cem
           pixels abaixo. Repetir aqui era dizer a mesma coisa duas vezes — e
           a versão da barra ainda era a pior, truncada em uma linha. */}

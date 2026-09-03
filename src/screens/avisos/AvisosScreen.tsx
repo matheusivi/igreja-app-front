@@ -167,7 +167,7 @@ export function AvisosScreen({ navigation }: Props) {
   const criar = () => navigation.navigate('CreateConteudo', { tipo: 'Aviso' });
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <ScreenHeader
         title="Avisos da igreja"
         subtitle={resumo}

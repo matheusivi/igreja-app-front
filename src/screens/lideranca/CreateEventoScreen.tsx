@@ -221,7 +221,7 @@ export function CreateEventoScreen({ route, navigation }: Props) {
   const faltando = missingHint();
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <TopBar
         title={isEditing ? 'Editar evento' : 'Novo evento'}
         onBack={() => navigation.goBack()}
