@@ -16,7 +16,7 @@
       "distribution": "internal",
       "channel": "teste",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://ibvi.novafeira.com.br"
+        "EXPO_PUBLIC_API_URL": "https://api.ibvichurch.com.br"
       },
       "android": {
         "buildType": "apk"
@@ -27,7 +27,7 @@
       "channel": "producao",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://ibvi.novafeira.com.br"
+        "EXPO_PUBLIC_API_URL": "https://api.ibvichurch.com.br"
       },
       "android": {
         "buildType": "app-bundle"

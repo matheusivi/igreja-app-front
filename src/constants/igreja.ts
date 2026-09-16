@@ -77,7 +77,7 @@ export const PIX = {
  * do nome e da chave PIX.
  */
 export const PAGINAS = {
-  privacidade: 'https://ibvi.novafeira.com.br/privacidade',
-  termos: 'https://ibvi.novafeira.com.br/termos',
-  excluirConta: 'https://ibvi.novafeira.com.br/excluir-conta',
+  privacidade: 'https://api.ibvichurch.com.br/privacidade',
+  termos: 'https://api.ibvichurch.com.br/termos',
+  excluirConta: 'https://api.ibvichurch.com.br/excluir-conta',
 } as const;
