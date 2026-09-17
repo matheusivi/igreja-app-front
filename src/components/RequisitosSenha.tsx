@@ -55,14 +55,22 @@ export function RequisitosSenha({ senha }: { senha: string }) {
 
   return (
     <View className="gap-1">
-      <Item ok={forca.tamanho} rotulo={`Mínimo de ${MINIMO_CARACTERES} caracteres`} />
-      <Item ok={forca.maiuscula} rotulo="Pelo menos uma letra maiúscula" />
-      <Item ok={forca.numero} rotulo="Pelo menos um número" />
+      <ItemRequisito ok={forca.tamanho} rotulo={`Mínimo de ${MINIMO_CARACTERES} caracteres`} />
+      <ItemRequisito ok={forca.maiuscula} rotulo="Pelo menos uma letra maiúscula" />
+      <ItemRequisito ok={forca.numero} rotulo="Pelo menos um número" />
     </View>
   );
 }
 
-function Item({ ok, rotulo }: { ok: boolean; rotulo: string }) {
+/**
+ * Uma linha de requisito, com o ponto que vira visto quando cumprida.
+ *
+ * Exportado porque a tela de redefinir senha precisa acrescentar uma regra
+ * própria — "as senhas devem ser iguais" — logo abaixo das três daqui. Sem
+ * isto, aquela linha ficaria com marcador e cor diferentes das vizinhas, e a
+ * lista pareceria dois grupos sem relação.
+ */
+export function ItemRequisito({ ok, rotulo }: { ok: boolean; rotulo: string }) {
   const colors = useThemeColors();
 
   return (

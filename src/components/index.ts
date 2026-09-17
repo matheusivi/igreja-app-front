@@ -26,6 +26,7 @@ export { MenorahMark } from './MenorahMark';
 export { Monograma, iniciaisDe } from './Monograma';
 export { PilhaAvatares } from './PilhaAvatares';
 export {
+  ItemRequisito,
   RequisitosSenha,
   avaliarSenha,
   senhaValida,

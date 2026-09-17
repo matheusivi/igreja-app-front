@@ -2,7 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Button, RequisitosSenha, avaliarSenha, senhaValida, TextField } from '../../components';
+import {
+  Button,
+  ItemRequisito,
+  RequisitosSenha,
+  avaliarSenha,
+  senhaValida,
+  TextField,
+} from '../../components';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { NOME_IGREJA } from '../../constants/igreja';
 import type { AuthStackParamList } from '../../navigation/types';
@@ -109,7 +116,7 @@ export function ResetPasswordScreen({ navigation, route }: Props) {
           Requisitos de segurança
         </Text>
         <RequisitosSenha senha={password} />
-        <Requirement met={passwordsMatch} label="As senhas devem ser iguais" />
+        <ItemRequisito ok={passwordsMatch} rotulo="As senhas devem ser iguais" />
       </View>
 
       {error && (

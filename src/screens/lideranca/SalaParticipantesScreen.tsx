@@ -97,7 +97,7 @@ export function SalaParticipantesScreen({ route, navigation }: Props) {
       ) : error ? (
         <View className="flex-1 items-center justify-center gap-3 px-gutter">
           <Text className="text-center font-sans text-sm text-ink-muted">{error}</Text>
-          <Button label="Tentar novamente" variant="secondary" onPress={load} />
+          <Button label="Tentar novamente" variant="secondary" onPress={() => refetch()} />
         </View>
       ) : (
         <ScrollView className="flex-1 px-gutter" contentContainerClassName="gap-xl py-3xl">
