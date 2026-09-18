@@ -123,8 +123,12 @@ export const authService = {
     await api.post('/api/auth/forgot-password', { email });
   },
 
-  async resetPassword(token: string, novaSenha: string): Promise<void> {
-    await api.post('/api/auth/reset-password', { token, novaSenha });
+  async resetPassword(
+    email: string,
+    token: string,
+    novaSenha: string,
+  ): Promise<void> {
+    await api.post('/api/auth/reset-password', { email, token, novaSenha });
   },
 
   /**

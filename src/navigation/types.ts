@@ -2,7 +2,12 @@ export type AuthStackParamList = {
   Login: undefined;
   SignUp: undefined;
   ForgotPassword: undefined;
-  ResetPassword: { token?: string } | undefined;
+  /**
+   * O e-mail é obrigatório porque o código de 8 dígitos não identifica
+   * ninguém sozinho — o servidor precisa saber de quem é a tentativa para
+   * contar os erros daquela pessoa. Vem da tela anterior, onde ela já digitou.
+   */
+  ResetPassword: { email: string; token?: string };
 };
 
 export type MainTabParamList = {

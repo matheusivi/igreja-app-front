@@ -36,7 +36,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
     return (
       <AuthLayout
         title="Verifique seu e-mail"
-        subtitle={`Enviamos instruções de recuperação para ${email}. Copie o código do e-mail e redefina sua senha abaixo.`}
+        subtitle={`Enviamos um código de 8 dígitos para ${email}. Ele vale por 15 minutos.`}
         footer={
           <Pressable
             className="flex-row items-center gap-1"
@@ -51,7 +51,11 @@ export function ForgotPasswordScreen({ navigation }: Props) {
         <Button
           label="Inserir código e redefinir senha"
           icon={<Ionicons name="arrow-forward" size={18} color={colors.onGold} />}
-          onPress={() => navigation.navigate('ResetPassword', { token: undefined })}
+          // O e-mail viaja junto: a pessoa acabou de digitá-lo, e pedir de
+          // novo na tela seguinte seria trabalho sem motivo.
+          onPress={() =>
+            navigation.navigate('ResetPassword', { email: email.trim() })
+          }
         />
       </AuthLayout>
     );

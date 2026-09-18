@@ -20,14 +20,14 @@ import { AuthLayout } from './AuthLayout';
 type Props = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
 /**
- * Tira TODO espaço do código, não só das pontas.
+ * Guarda só dígitos, no máximo 8.
  *
- * O código tem 64 caracteres e o e-mail o quebra em várias linhas. Ao
- * selecionar e copiar, o celular traz as quebras junto — e `trim()` só limpa
- * início e fim. O resultado era "código inválido" para quem copiou certo.
+ * Quem copia o código do e-mail traz espaços junto, e quem digita às vezes
+ * separa em pares por hábito de cartão. Filtrar em vez de recusar é o que
+ * transforma "código inválido" numa mensagem que nunca precisa aparecer.
  */
 function limparCodigo(valor: string): string {
-  return valor.replace(/\s+/g, '');
+  return valor.replace(/\D/g, '').slice(0, 8);
 }
 
 export function ResetPasswordScreen({ navigation, route }: Props) {
@@ -42,14 +42,21 @@ export function ResetPasswordScreen({ navigation, route }: Props) {
   const forcaSenha = avaliarSenha(password);
   const passwordsMatch = password.length > 0 && password === confirmPassword;
 
-  const canSubmit = limparCodigo(token).length > 0 && senhaValida(forcaSenha) && passwordsMatch;
+  // Oito exatos, não "pelo menos um": o botão fica apagado até o código estar
+  // completo, em vez de deixar enviar pela metade e devolver erro do servidor.
+  const canSubmit =
+    limparCodigo(token).length === 8 && senhaValida(forcaSenha) && passwordsMatch;
 
   async function handleReset() {
     if (!canSubmit) return;
     setError(null);
     setIsLoading(true);
     try {
-      await authService.resetPassword(limparCodigo(token), password);
+      await authService.resetPassword(
+        route.params.email,
+        limparCodigo(token),
+        password,
+      );
       setDone(true);
     } catch (e) {
       setError(extractErrorMessage(e, 'Código inválido ou expirado. Solicite um novo link.'));
@@ -90,11 +97,16 @@ export function ResetPasswordScreen({ navigation, route }: Props) {
       }
     >
       <TextField
-        label="Código de recuperação"
-        placeholder="Cole aqui o código que chegou no e-mail"
-        autoCapitalize="none"
+        label="Código de 8 dígitos"
+        placeholder="00000000"
+        // Teclado numérico e limite no próprio campo: o erro mais provável
+        // aqui é digitar um dígito a mais, e o campo simplesmente não aceita.
+        keyboardType="number-pad"
+        maxLength={8}
+        textContentType="oneTimeCode"
+        autoComplete="sms-otp"
         value={token}
-        onChangeText={(v) => { setToken(v); setError(null); }}
+        onChangeText={(v) => { setToken(limparCodigo(v)); setError(null); }}
       />
       <TextField
         label="Nova senha"
